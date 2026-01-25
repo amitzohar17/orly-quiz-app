@@ -1,9 +1,41 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+/**
+ * IMPORTANT:
+ * - NEXT_PUBLIC_* variables are exposed to the browser.
+ * - Use ONLY the "anon" key here (never service_role).
+ */
 
-export const supabase = createClient(
-  supabaseUrl,
-  supabaseAnonKey
-)
+let cachedClient: SupabaseClient | null = null;
+
+function getEnv(name: string): string | null {
+  const v = process.env[name];
+  if (!v) return null;
+  const trimmed = v.trim();
+  return trimmed.length ? trimmed : null;
+}
+
+/**
+ * Returns a Supabase client if env vars exist, otherwise null.
+ * This prevents build failures on Vercel when env vars are missing/misconfigured.
+ */
+export function getSupabase(): SupabaseClient | null {
+  if (cachedClient) return cachedClient;
+
+  const url = getEnv("NEXT_PUBLIC_SUPABASE_URL");
+  const anonKey = getEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+
+  if (!url || !anonKey) {
+    return null;
+  }
+
+  cachedClient = createClient(url, anonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
+  });
+
+  return cachedClient;
+}
