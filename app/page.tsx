@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "../lib/supabaseClient";
+import { getSupabase } from "../lib/supabaseClient";
 
 /* ---------- Types ---------- */
 
@@ -31,17 +31,28 @@ type UiQuestion = {
 /* ---------- Home ---------- */
 
 export default function Home() {
+  const supabase = useMemo(() => getSupabase(), []);
+
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const [categories, setCategories] = useState<CategoryRow[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<CategoryRow | null>(null);
+  const [selectedCategory, setSelectedCategory] =
+    useState<CategoryRow | null>(null);
   const [questions, setQuestions] = useState<UiQuestion[]>([]);
 
   useEffect(() => {
     async function loadCategories() {
       setLoading(true);
       setErrorMsg(null);
+
+      if (!supabase) {
+        setErrorMsg(
+          "חסרים משתני סביבה של Supabase (בדקי Vercel / .env.local)"
+        );
+        setLoading(false);
+        return;
+      }
 
       const { data, error } = await supabase
         .from("categories")
@@ -59,9 +70,16 @@ export default function Home() {
     }
 
     loadCategories();
-  }, []);
+  }, [supabase]);
 
   async function enterCategory(c: CategoryRow) {
+    if (!supabase) {
+      setErrorMsg(
+        "חסרים משתני סביבה של Supabase (בדקי Vercel / .env.local)"
+      );
+      return;
+    }
+
     setSelectedCategory(c);
     setLoading(true);
     setErrorMsg(null);
@@ -100,14 +118,21 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-100 p-4 flex items-center justify-center" dir="rtl">
+    <main
+      className="min-h-screen bg-gray-100 p-4 flex items-center justify-center"
+      dir="rtl"
+    >
       <div className="bg-white rounded-xl shadow-md max-w-lg w-full p-6">
         {loading && <p className="text-start">טוען...</p>}
-        {errorMsg && <p className="text-red-600 text-start">שגיאה: {errorMsg}</p>}
+        {errorMsg && (
+          <p className="text-red-600 text-start">שגיאה: {errorMsg}</p>
+        )}
 
         {!loading && !selectedCategory && (
           <>
-            <h1 className="text-2xl font-bold mb-4 text-start">בחרי נושא לתרגול</h1>
+            <h1 className="text-2xl font-bold mb-4 text-start">
+              בחרי נושא לתרגול
+            </h1>
 
             <div className="space-y-2">
               {categories.map((c) => (
@@ -122,7 +147,9 @@ export default function Home() {
             </div>
 
             {categories.length === 0 && (
-              <p className="text-gray-500 mt-4 text-start">אין נושאים עדיין</p>
+              <p className="text-gray-500 mt-4 text-start">
+                אין נושאים עדיין
+              </p>
             )}
           </>
         )}
@@ -184,12 +211,11 @@ function Practice({
   }, [questions]);
 
   const visibleQuestions = useMemo(() => {
-    const base = order;
-    if (mode === "wrong") return base.filter((q) => wrongIds.has(q.id));
-    return base;
+    if (mode === "wrong") return order.filter((q) => wrongIds.has(q.id));
+    return order;
   }, [mode, order, wrongIds]);
 
-  const q = useMemo(() => visibleQuestions[index], [visibleQuestions, index]);
+  const q = visibleQuestions[index];
   const isAnswered = selected !== null;
 
   function chooseAnswer(i: number) {
@@ -222,8 +248,7 @@ function Practice({
     setWrongIds(new Set());
     setMode("all");
 
-    const nextOrder = isShuffled ? shuffleArray(questions) : questions;
-    setOrder(nextOrder);
+    setOrder(isShuffled ? shuffleArray(questions) : questions);
   }
 
   function restartWrongOnly() {
@@ -234,8 +259,7 @@ function Practice({
     setIsFinished(false);
     setMode("wrong");
 
-    const nextOrder = isShuffled ? shuffleArray(questions) : questions;
-    setOrder(nextOrder);
+    setOrder(isShuffled ? shuffleArray(questions) : questions);
   }
 
   if (visibleQuestions.length === 0) {
@@ -250,7 +274,10 @@ function Practice({
   }
 
   if (isFinished) {
-    const percent = answeredCount === 0 ? 0 : Math.round((score / answeredCount) * 100);
+    const percent =
+      answeredCount === 0
+        ? 0
+        : Math.round((score / answeredCount) * 100);
 
     return (
       <>
@@ -258,7 +285,9 @@ function Practice({
           חזרה לנושאים
         </button>
 
-        <h2 className="text-xl font-bold mb-2 text-start">סיימת את התרגול 🎉</h2>
+        <h2 className="text-xl font-bold mb-2 text-start">
+          סיימת את התרגול 🎉
+        </h2>
         <p className="text-gray-600 mb-6 text-start">{categoryName}</p>
 
         <div className="space-y-2 mb-6">
@@ -281,7 +310,10 @@ function Practice({
         </div>
 
         <div className="flex flex-col gap-2">
-          <button className="w-full p-3 rounded bg-black text-white" onClick={restartAll}>
+          <button
+            className="w-full p-3 rounded bg-black text-white"
+            onClick={restartAll}
+          >
             תרגול מחדש (הכול)
           </button>
 
@@ -313,34 +345,15 @@ function Practice({
         שאלה {index + 1} מתוך {visibleQuestions.length}
       </p>
 
-      <div className="mb-4 flex gap-2 items-center">
-        <button
-          className="px-3 py-2 border rounded disabled:opacity-50"
-          disabled={answeredCount > 0}
-          onClick={() => {
-            setOrder(shuffleArray(order));
-            setIsShuffled(true);
-            setIndex(0);
-            setSelected(null);
-          }}
-        >
-          ערבבי שאלות
-        </button>
-
-        {isShuffled && <span className="text-sm text-gray-500">מצב: אקראי</span>}
-      </div>
-
       <p className="mb-4 text-lg text-start">{q.text}</p>
 
       <div className="space-y-2">
         {q.options.map((opt, i) => {
-          let cls = "w-full p-3 border rounded text-start transition";
+          let cls = "w-full p-3 border rounded text-start";
           if (isAnswered) {
             if (i === q.correctIndex) cls += " bg-green-100 border-green-500";
             else if (i === selected) cls += " bg-red-100 border-red-500";
             else cls += " opacity-80";
-          } else {
-            cls += " hover:bg-gray-50";
           }
 
           return (
@@ -359,9 +372,13 @@ function Practice({
       {isAnswered && (
         <div className="mt-4 text-start">
           <p className="font-semibold">
-            {selected === q.correctIndex ? "✔ תשובה נכונה!" : "❌ תשובה שגויה"}
+            {selected === q.correctIndex
+              ? "✔ תשובה נכונה!"
+              : "❌ תשובה שגויה"}
           </p>
-          {q.explanation && <p className="text-sm text-gray-600 mt-1">{q.explanation}</p>}
+          {q.explanation && (
+            <p className="text-sm text-gray-600 mt-1">{q.explanation}</p>
+          )}
         </div>
       )}
 

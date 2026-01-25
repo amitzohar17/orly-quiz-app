@@ -3,7 +3,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 /**
  * IMPORTANT:
  * - NEXT_PUBLIC_* variables are exposed to the browser.
- * - Use ONLY the "anon" key here (never service_role).
+ * - Use ONLY the anon key here (never service_role).
  */
 
 let cachedClient: SupabaseClient | null = null;
@@ -17,7 +17,7 @@ function getEnv(name: string): string | null {
 
 /**
  * Returns a Supabase client if env vars exist, otherwise null.
- * This prevents build failures on Vercel when env vars are missing/misconfigured.
+ * Prevents Vercel build crashes when env vars are missing.
  */
 export function getSupabase(): SupabaseClient | null {
   if (cachedClient) return cachedClient;
@@ -29,13 +29,6 @@ export function getSupabase(): SupabaseClient | null {
     return null;
   }
 
-  cachedClient = createClient(url, anonKey, {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-    },
-  });
-
+  cachedClient = createClient(url, anonKey);
   return cachedClient;
 }
