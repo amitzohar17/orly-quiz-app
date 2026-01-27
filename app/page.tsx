@@ -58,7 +58,14 @@ export default function Home() {
         return;
       }
 
-      setCategories((data ?? []) as CategoryRow[]);
+      const hiddenCategoryNames = ["נהלים", "בטיחות"];
+
+      const filtered = (data ?? []).filter(
+        (c) => !hiddenCategoryNames.includes(c.name)
+      ) as CategoryRow[];
+
+      setCategories(filtered);
+
       setLoading(false);
     }
 
