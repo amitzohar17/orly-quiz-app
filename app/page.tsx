@@ -29,7 +29,7 @@ type UiQuestion = {
   explanation?: string;
 };
 
-/* ---------- Home ---------- */
+/* ---------- Home (Main Page) ---------- */
 
 export default function Home() {
   const [loading, setLoading] = useState(true);
@@ -58,14 +58,13 @@ export default function Home() {
         return;
       }
 
+      // סינון קטגוריות שאת לא רוצה להציג כרגע
       const hiddenCategoryNames = ["נהלים", "בטיחות"];
-
       const filtered = (data ?? []).filter(
         (c) => !hiddenCategoryNames.includes(c.name)
       ) as CategoryRow[];
 
       setCategories(filtered);
-
       setLoading(false);
     }
 
@@ -115,27 +114,25 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-gray-100 p-4 flex items-center justify-center" dir="rtl">
       <div className="bg-white rounded-xl shadow-md max-w-lg w-full p-6">
-        {loading && <p className="text-start">טוען...</p>}
+        {loading && <p className="text-start">טוען נתונים...</p>}
         {errorMsg && <p className="text-red-600 text-start">שגיאה: {errorMsg}</p>}
 
         {!loading && !selectedCategory && (
           <>
             <h1 className="text-2xl font-bold mb-4 text-start">בחרי נושא לתרגול</h1>
-
             <div className="space-y-2">
               {categories.map((c) => (
                 <button
                   key={c.id}
-                  className="w-full text-start p-3 rounded border hover:bg-gray-50"
+                  className="w-full text-start p-3 rounded border hover:bg-gray-50 transition"
                   onClick={() => enterCategory(c)}
                 >
                   {c.name}
                 </button>
               ))}
             </div>
-
             {categories.length === 0 && !errorMsg && (
-              <p className="text-gray-500 mt-4 text-start">אין נושאים עדיין</p>
+              <p className="text-gray-500 mt-4 text-start">אין נושאים זמינים כרגע</p>
             )}
           </>
         )}
@@ -152,7 +149,7 @@ export default function Home() {
   );
 }
 
-/* ---------- Practice ---------- */
+/* ---------- Practice Component (The Part We Fixed) ---------- */
 
 function Practice({
   categoryName,
@@ -181,11 +178,12 @@ function Practice({
   const [wrongIds, setWrongIds] = useState<Set<string>>(new Set());
   const [mode, setMode] = useState<"all" | "wrong">("all");
 
-  const [order, setOrder] = useState<UiQuestion[]>(questions);
+  const [currentQuestions, setCurrentQuestions] = useState<UiQuestion[]>(questions);
   const [isShuffled, setIsShuffled] = useState(false);
 
+  // מאתחל את המבנה כשיש שינוי בקטגוריה
   useEffect(() => {
-    setOrder(questions);
+    setCurrentQuestions(questions);
     setIsShuffled(false);
     setIndex(0);
     setSelected(null);
@@ -196,29 +194,23 @@ function Practice({
     setMode("all");
   }, [questions]);
 
-  const visibleQuestions = useMemo(() => {
-    const base = order;
-    if (mode === "wrong") return base.filter((q) => wrongIds.has(q.id));
-    return base;
-  }, [mode, order, wrongIds]);
-
-  const q = useMemo(() => visibleQuestions[index], [visibleQuestions, index]);
+  const q = currentQuestions[index];
   const isAnswered = selected !== null;
 
   function chooseAnswer(i: number) {
-    if (isAnswered || isFinished) return;
+    if (isAnswered || isFinished || !q) return;
     setSelected(i);
     setAnsweredCount((c) => c + 1);
 
-    if (q && i === q.correctIndex) {
+    if (i === q.correctIndex) {
       setScore((s) => s + 1);
-    } else if (q) {
+    } else {
       setWrongIds((prev) => new Set(prev).add(q.id));
     }
   }
 
   function nextQuestion() {
-    if (index >= visibleQuestions.length - 1) {
+    if (index >= currentQuestions.length - 1) {
       setIsFinished(true);
       return;
     }
@@ -227,38 +219,36 @@ function Practice({
   }
 
   function restartAll() {
+    setMode("all");
+    const nextOrder = isShuffled ? shuffleArray(questions) : questions;
+    setCurrentQuestions(nextOrder);
     setIndex(0);
     setSelected(null);
     setScore(0);
     setAnsweredCount(0);
     setIsFinished(false);
-    setWrongIds(new Set());
-    setMode("all");
-
-    const nextOrder = isShuffled ? shuffleArray(questions) : questions;
-    setOrder(nextOrder);
+    setWrongIds(new Set()); 
   }
 
   function restartWrongOnly() {
+    const onlyWrongs = questions.filter(q => wrongIds.has(q.id));
+    const finalWrongs = isShuffled ? shuffleArray(onlyWrongs) : onlyWrongs;
+
+    setMode("wrong");
+    setCurrentQuestions(finalWrongs);
     setIndex(0);
     setSelected(null);
     setScore(0);
     setAnsweredCount(0);
     setIsFinished(false);
-    setMode("wrong");
-
-    const nextOrder = isShuffled ? shuffleArray(questions) : questions;
-    setOrder(nextOrder);
   }
 
-  if (visibleQuestions.length === 0) {
+  if (currentQuestions.length === 0) {
     return (
-      <>
-        <button className="underline mb-4 text-start" onClick={onBack}>
-          חזרה לנושאים
-        </button>
-        <p className="text-start">אין שאלות לתרגול</p>
-      </>
+      <div className="text-center py-10">
+        <p className="mb-4">לא נמצאו שאלות.</p>
+        <button className="underline" onClick={onBack}>חזרה לנושאים</button>
+      </div>
     );
   }
 
@@ -266,103 +256,93 @@ function Practice({
     const percent = answeredCount === 0 ? 0 : Math.round((score / answeredCount) * 100);
 
     return (
-      <>
-        <button className="underline mb-4 text-start" onClick={onBack}>
+      <div className="text-start">
+        <button className="underline mb-4 block" onClick={onBack}>
           חזרה לנושאים
         </button>
 
-        <h2 className="text-xl font-bold mb-2 text-start">סיימת את התרגול 🎉</h2>
-        <p className="text-gray-600 mb-6 text-start">{categoryName}</p>
+        <h2 className="text-xl font-bold mb-2">
+          {mode === "wrong" ? "סיכום תרגול טעויות" : "סיימת את התרגול 🎉"}
+        </h2>
+        <p className="text-gray-600 mb-6">{categoryName}</p>
 
         <div className="space-y-2 mb-6">
           <div className="p-3 rounded border bg-gray-50 flex justify-between">
             <span>ענית על</span>
-            <span className="font-semibold">{answeredCount}</span>
+            <span className="font-semibold">{answeredCount} שאלות</span>
           </div>
           <div className="p-3 rounded border bg-gray-50 flex justify-between">
             <span>תשובות נכונות</span>
-            <span className="font-semibold">{score}</span>
+            <span className="font-semibold text-green-600">{score}</span>
           </div>
           <div className="p-3 rounded border bg-gray-50 flex justify-between">
             <span>אחוז הצלחה</span>
             <span className="font-semibold">{percent}%</span>
           </div>
-          <div className="p-3 rounded border bg-gray-50 flex justify-between">
-            <span>טעויות</span>
-            <span className="font-semibold">{wrongIds.size}</span>
-          </div>
+          {mode === "all" && (
+            <div className="p-3 rounded border bg-gray-50 flex justify-between">
+              <span>טעויות שנשמרו</span>
+              <span className="font-semibold text-red-600">{wrongIds.size}</span>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col gap-2">
-          <button className="w-full p-3 rounded bg-black text-white" onClick={restartAll}>
-            תרגול מחדש (הכול)
+          <button className="w-full p-3 rounded bg-black text-white font-bold" onClick={restartAll}>
+            תרגול מחדש (הכל)
           </button>
-
           <button
-            className="w-full p-3 rounded border disabled:opacity-50"
+            className="w-full p-3 rounded border font-bold disabled:opacity-30 shadow-sm"
             disabled={wrongIds.size === 0}
             onClick={restartWrongOnly}
           >
             תרגלי רק טעויות ({wrongIds.size})
           </button>
-
           <button className="w-full p-3 rounded border" onClick={onBack}>
-            חזרה לנושאים
+            בחירת נושא אחר
           </button>
         </div>
-      </>
+      </div>
     );
   }
 
   return (
     <>
-      <button className="underline mb-4 text-start" onClick={onBack}>
-        חזרה לנושאים
-      </button>
-
-      <h2 className="text-xl font-bold mb-2 text-start">{categoryName}</h2>
-
-      <p className="text-sm mb-2 text-start">
-        שאלה {index + 1} מתוך {visibleQuestions.length}
-      </p>
-
-      <div className="mb-4 flex gap-2 items-center">
-        <button
-          className="px-3 py-2 border rounded disabled:opacity-50"
-          disabled={answeredCount > 0}
-          onClick={() => {
-            setOrder(shuffleArray(order));
-            setIsShuffled(true);
-            setIndex(0);
-            setSelected(null);
-          }}
-        >
-          ערבבי שאלות
-        </button>
-
-        {isShuffled && <span className="text-sm text-gray-500">מצב: אקראי</span>}
+      <div className="flex justify-between items-center mb-4">
+        <button className="underline text-sm" onClick={onBack}>חזרה</button>
+        {mode === "wrong" && (
+          <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold">תרגול טעויות</span>
+        )}
       </div>
 
-      <p className="mb-4 text-lg text-start">{q.text}</p>
+      <h2 className="text-xl font-bold mb-2 text-start">{categoryName}</h2>
+      <p className="text-sm mb-2 text-start text-gray-500">
+        שאלה {index + 1} מתוך {currentQuestions.length}
+      </p>
 
-      <div className="space-y-2">
-        {q.options.map((opt, i) => {
-          let cls = "w-full p-3 border rounded text-start transition";
+      {/* Progress Bar */}
+      <div className="w-full bg-gray-200 h-2 rounded-full mb-6">
+        <div 
+          className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+          style={{ width: `${((index + 1) / currentQuestions.length) * 100}%` }}
+        />
+      </div>
+
+      <p className="mb-6 text-lg font-medium text-start leading-tight">{q?.text}</p>
+
+      <div className="space-y-3">
+        {q?.options.map((opt, i) => {
+          let cls = "w-full p-4 border-2 rounded-xl text-start transition-all ";
           if (isAnswered) {
-            if (i === q.correctIndex) cls += " bg-green-100 border-green-500";
-            else if (i === selected) cls += " bg-red-100 border-red-500";
-            else cls += " opacity-80";
+            if (i === q.correctIndex) cls += "bg-green-100 border-green-500 text-green-800 font-bold";
+            else if (i === selected) cls += "bg-red-100 border-red-500 text-red-800";
+            else cls += "opacity-50 border-gray-100";
           } else {
-            cls += " hover:bg-gray-50";
+            cls += "hover:bg-gray-50 border-gray-200 active:bg-gray-100";
           }
 
           return (
-            <button
-              key={i}
-              className={cls}
-              disabled={isAnswered}
-              onClick={() => chooseAnswer(i)}
-            >
+            <button key={i} className={cls} disabled={isAnswered} onClick={() => chooseAnswer(i)}>
               {opt}
             </button>
           );
@@ -370,20 +350,20 @@ function Practice({
       </div>
 
       {isAnswered && (
-        <div className="mt-4 text-start">
-          <p className="font-semibold">
-            {selected === q.correctIndex ? "✔ תשובה נכונה!" : "❌ תשובה שגויה"}
+        <div className="mt-6 p-4 bg-blue-50 rounded-lg text-start border border-blue-100">
+          <p className="font-bold mb-1">
+            {selected === q.correctIndex ? "✔ יופי! תשובה נכונה" : "❌ טעות, לא נורא..."}
           </p>
-          {q.explanation && <p className="text-sm text-gray-600 mt-1">{q.explanation}</p>}
+          {q.explanation && <p className="text-sm text-gray-700">{q.explanation}</p>}
         </div>
       )}
 
       <button
-        className="mt-6 w-full p-3 bg-black text-white rounded disabled:opacity-50"
+        className="mt-8 w-full p-4 bg-black text-white rounded-xl font-bold disabled:opacity-50 shadow-md"
         disabled={!isAnswered}
         onClick={nextQuestion}
       >
-        {index === visibleQuestions.length - 1 ? "סיום" : "הבא"}
+        {index === currentQuestions.length - 1 ? "לסיכום התרגול" : "המשך לשאלה הבאה"}
       </button>
     </>
   );
