@@ -148,7 +148,7 @@ export default function Home() {
   );
 }
 
-/* ---------- Practice Component (FIXED VERSION) ---------- */
+/* ---------- Practice Component (ULTRASONIC FIX) ---------- */
 
 function Practice({
   categoryName,
@@ -203,7 +203,8 @@ function Practice({
     if (i === q.correctIndex) {
       setScore((s) => s + 1);
     } else {
-      setWrongIds((prev) => new Set(prev).add(q.id));
+      // מוסיפים ל-Set ומוודאים שזה String ליתר ביטחון
+      setWrongIds((prev) => new Set(prev).add(String(q.id)));
     }
   }
 
@@ -229,17 +230,22 @@ function Practice({
   }
 
   function restartWrongOnly() {
-    // שלב 1: הופכים את ה-Set למערך
-    const wrongsArray = Array.from(wrongIds);
-    // שלב 2: מסננים את השאלות המקוריות כדי שיהיו רק טעויות
-    const onlyWrongs = questions.filter(q => wrongsArray.includes(q.id));
+    // השלב הקריטי: המרה למערך של מחרוזות
+    const wrongsArray = Array.from(wrongIds).map(id => String(id));
     
-    if (onlyWrongs.length === 0) return;
+    // סינון מתוך רשימת השאלות המקורית (questions)
+    const onlyWrongs = questions.filter(item => wrongsArray.includes(String(item.id)));
+    
+    if (onlyWrongs.length === 0) {
+      alert("לא נמצאו טעויות לתרגול");
+      return;
+    }
 
     const finalWrongs = isShuffled ? shuffleArray(onlyWrongs) : onlyWrongs;
 
+    // עדכון כל ה-States יחד
     setMode("wrong");
-    setCurrentQuestions(finalWrongs);
+    setCurrentQuestions(finalWrongs); 
     setIndex(0);
     setSelected(null);
     setScore(0);
@@ -292,11 +298,11 @@ function Practice({
         </div>
 
         <div className="flex flex-col gap-2">
-          <button className="w-full p-3 rounded bg-black text-white font-bold hover:bg-gray-800 transition" onClick={restartAll}>
+          <button className="w-full p-3 rounded bg-black text-white font-bold hover:bg-gray-800 transition shadow-md" onClick={restartAll}>
             תרגול מחדש (הכל)
           </button>
           <button
-            className="w-full p-3 rounded border font-bold disabled:opacity-30 shadow-sm hover:bg-gray-50 transition"
+            className="w-full p-3 rounded border-2 border-black font-bold disabled:opacity-30 shadow-sm hover:bg-gray-50 transition"
             disabled={wrongIds.size === 0}
             onClick={restartWrongOnly}
           >
@@ -315,7 +321,9 @@ function Practice({
       <div className="flex justify-between items-center mb-4">
         <button className="underline text-sm" onClick={onBack}>חזרה</button>
         {mode === "wrong" && (
-          <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold">תרגול טעויות</span>
+          <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold ring-1 ring-red-300">
+            מצב תרגול טעויות
+          </span>
         )}
       </div>
 
@@ -324,10 +332,10 @@ function Practice({
         שאלה {index + 1} מתוך {currentQuestions.length}
       </p>
 
-      {/* --- PROGRESS BAR (כאן תחפשי את הפס הכחול) --- */}
-      <div className="w-full bg-gray-200 h-2 rounded-full mb-6">
+      {/* Progress Bar */}
+      <div className="w-full bg-gray-200 h-2.5 rounded-full mb-6">
         <div 
-          className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+          className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" 
           style={{ width: `${((index + 1) / currentQuestions.length) * 100}%` }}
         />
       </div>
@@ -338,11 +346,11 @@ function Practice({
         {q?.options.map((opt, i) => {
           let cls = "w-full p-4 border-2 rounded-xl text-start transition-all ";
           if (isAnswered) {
-            if (i === q.correctIndex) cls += "bg-green-100 border-green-500 text-green-800 font-bold";
-            else if (i === selected) cls += "bg-red-100 border-red-500 text-red-800";
+            if (i === q.correctIndex) cls += "bg-green-100 border-green-500 text-green-800 font-bold shadow-sm";
+            else if (i === selected) cls += "bg-red-100 border-red-500 text-red-800 shadow-sm";
             else cls += "opacity-50 border-gray-100";
           } else {
-            cls += "hover:bg-gray-50 border-gray-200 active:bg-gray-100 cursor-pointer";
+            cls += "hover:bg-gray-50 border-gray-200 active:bg-gray-100 cursor-pointer shadow-sm";
           }
 
           return (
@@ -354,16 +362,16 @@ function Practice({
       </div>
 
       {isAnswered && (
-        <div className="mt-6 p-4 bg-blue-50 rounded-lg text-start border border-blue-100">
+        <div className="mt-6 p-4 bg-blue-50 rounded-lg text-start border border-blue-100 animate-in fade-in duration-300">
           <p className="font-bold mb-1">
             {selected === q.correctIndex ? "✔ יופי! תשובה נכונה" : "❌ טעות, לא נורא..."}
           </p>
-          {q.explanation && <p className="text-sm text-gray-700">{q.explanation}</p>}
+          {q.explanation && <p className="text-sm text-gray-700 leading-relaxed">{q.explanation}</p>}
         </div>
       )}
 
       <button
-        className="mt-8 w-full p-4 bg-black text-white rounded-xl font-bold disabled:opacity-50 shadow-md transition hover:bg-gray-800"
+        className="mt-8 w-full p-4 bg-black text-white rounded-xl font-bold disabled:opacity-50 shadow-lg transition-all active:scale-95"
         disabled={!isAnswered}
         onClick={nextQuestion}
       >
