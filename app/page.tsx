@@ -58,7 +58,6 @@ export default function Home() {
         return;
       }
 
-      // סינון קטגוריות שאת לא רוצה להציג כרגע
       const hiddenCategoryNames = ["נהלים", "בטיחות"];
       const filtered = (data ?? []).filter(
         (c) => !hiddenCategoryNames.includes(c.name)
@@ -149,7 +148,7 @@ export default function Home() {
   );
 }
 
-/* ---------- Practice Component (The Part We Fixed) ---------- */
+/* ---------- Practice Component (FIXED VERSION) ---------- */
 
 function Practice({
   categoryName,
@@ -181,7 +180,6 @@ function Practice({
   const [currentQuestions, setCurrentQuestions] = useState<UiQuestion[]>(questions);
   const [isShuffled, setIsShuffled] = useState(false);
 
-  // מאתחל את המבנה כשיש שינוי בקטגוריה
   useEffect(() => {
     setCurrentQuestions(questions);
     setIsShuffled(false);
@@ -231,7 +229,13 @@ function Practice({
   }
 
   function restartWrongOnly() {
-    const onlyWrongs = questions.filter(q => wrongIds.has(q.id));
+    // שלב 1: הופכים את ה-Set למערך
+    const wrongsArray = Array.from(wrongIds);
+    // שלב 2: מסננים את השאלות המקוריות כדי שיהיו רק טעויות
+    const onlyWrongs = questions.filter(q => wrongsArray.includes(q.id));
+    
+    if (onlyWrongs.length === 0) return;
+
     const finalWrongs = isShuffled ? shuffleArray(onlyWrongs) : onlyWrongs;
 
     setMode("wrong");
@@ -266,7 +270,7 @@ function Practice({
         </h2>
         <p className="text-gray-600 mb-6">{categoryName}</p>
 
-        <div className="space-y-2 mb-6">
+        <div className="space-y-2 mb-6 text-start">
           <div className="p-3 rounded border bg-gray-50 flex justify-between">
             <span>ענית על</span>
             <span className="font-semibold">{answeredCount} שאלות</span>
@@ -281,24 +285,24 @@ function Practice({
           </div>
           {mode === "all" && (
             <div className="p-3 rounded border bg-gray-50 flex justify-between">
-              <span>טעויות שנשמרו</span>
+              <span>טעויות שנשמרו לתרגול</span>
               <span className="font-semibold text-red-600">{wrongIds.size}</span>
             </div>
           )}
         </div>
 
         <div className="flex flex-col gap-2">
-          <button className="w-full p-3 rounded bg-black text-white font-bold" onClick={restartAll}>
+          <button className="w-full p-3 rounded bg-black text-white font-bold hover:bg-gray-800 transition" onClick={restartAll}>
             תרגול מחדש (הכל)
           </button>
           <button
-            className="w-full p-3 rounded border font-bold disabled:opacity-30 shadow-sm"
+            className="w-full p-3 rounded border font-bold disabled:opacity-30 shadow-sm hover:bg-gray-50 transition"
             disabled={wrongIds.size === 0}
             onClick={restartWrongOnly}
           >
             תרגלי רק טעויות ({wrongIds.size})
           </button>
-          <button className="w-full p-3 rounded border" onClick={onBack}>
+          <button className="w-full p-3 rounded border hover:bg-gray-50 transition" onClick={onBack}>
             בחירת נושא אחר
           </button>
         </div>
@@ -320,7 +324,7 @@ function Practice({
         שאלה {index + 1} מתוך {currentQuestions.length}
       </p>
 
-      {/* Progress Bar */}
+      {/* --- PROGRESS BAR (כאן תחפשי את הפס הכחול) --- */}
       <div className="w-full bg-gray-200 h-2 rounded-full mb-6">
         <div 
           className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
@@ -338,7 +342,7 @@ function Practice({
             else if (i === selected) cls += "bg-red-100 border-red-500 text-red-800";
             else cls += "opacity-50 border-gray-100";
           } else {
-            cls += "hover:bg-gray-50 border-gray-200 active:bg-gray-100";
+            cls += "hover:bg-gray-50 border-gray-200 active:bg-gray-100 cursor-pointer";
           }
 
           return (
@@ -359,7 +363,7 @@ function Practice({
       )}
 
       <button
-        className="mt-8 w-full p-4 bg-black text-white rounded-xl font-bold disabled:opacity-50 shadow-md"
+        className="mt-8 w-full p-4 bg-black text-white rounded-xl font-bold disabled:opacity-50 shadow-md transition hover:bg-gray-800"
         disabled={!isAnswered}
         onClick={nextQuestion}
       >
