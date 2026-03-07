@@ -11,7 +11,6 @@ type UiQuestion = {
   text: string;
   options: string[];
   correctIndex: number;
-  explanation?: string;
 };
 
 /* ---------- Main Component ---------- */
@@ -24,13 +23,19 @@ export default function Home() {
 
   useEffect(() => {
     async function loadCategories() {
+      setLoading(true);
       const { data, error } = await supabase.from("categories").select("id,name").order("name");
       if (error) {
-        setErrorMsg("שגיאה בטעינת קטגוריות");
+        setErrorMsg("שגיאה בטעינה");
         setLoading(false);
         return;
       }
-      setCategories(data || []);
+      
+      // סינון הקטגוריות שביקשת להוריד
+      const forbidden = ["נהלים", "בטיחות"];
+      const filtered = (data || []).filter(c => !forbidden.includes(c.name));
+      
+      setCategories(filtered);
       setLoading(false);
     }
     loadCategories();
@@ -50,8 +55,7 @@ export default function Home() {
       categoryId: String(q.category_id),
       text: q.text,
       options: [q.option_a, q.option_b, q.option_c, q.option_d],
-      correctIndex: Number(q.correct_index),
-      explanation: q.explanation
+      correctIndex: Number(q.correct_index)
     }));
     
     setQuestions(mapped);
@@ -60,14 +64,14 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 p-4 flex items-center justify-center font-sans" dir="rtl">
+    <main className="min-h-screen bg-gray-100 p-4 flex items-center justify-center font-sans" dir="rtl">
       <div className="bg-white rounded-3xl shadow-xl max-w-lg w-full p-6 text-center border border-gray-100">
-        {loading && <p className="py-8 text-gray-400 animate-pulse font-bold">טוען נתונים...</p>}
+        {loading && <p className="py-8 text-gray-400 font-bold animate-pulse">טוען...</p>}
         {errorMsg && <p className="text-red-500 mb-4">{errorMsg}</p>}
         
         {!loading && !selectedCategory && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <h1 className="text-3xl font-black mb-6 text-gray-800 italic">אורלי בסביבה - תרגול</h1>
+            <h1 className="text-3xl font-black mb-8 text-gray-800">בחרי נושא לתרגול</h1>
             <div className="grid gap-3">
               {categories.map((c) => (
                 <button 
@@ -108,84 +112,27 @@ function PracticeView({ categoryName, allQuestions, onExit }: { categoryName: st
 
   function handleSelect(i: number) {
     if (userSelection !== null) return; 
-    
     setAnswers(prev => ({ ...prev, [index]: i }));
-    
     if (i !== q.correctIndex) {
-      setWrongIds(prev => {
-        const newSet = new Set(prev);
-        newSet.add(q.id);
-        return newSet;
-      });
+      setWrongIds(prev => new Set(prev).add(q.id));
     }
-  }
-
-  function goNext() {
-    if (index < currentList.length - 1) {
-      setIndex(index + 1);
-    } else {
-      setIsFinished(true);
-    }
-  }
-
-  function goBack() {
-    if (index > 0) {
-      setIndex(index - 1);
-    }
-  }
-
-  function startErrors() {
-    const onlyErrors = allQuestions.filter(item => wrongIds.has(item.id));
-    setCurrentList(onlyErrors);
-    setMode("errors");
-    setIndex(0);
-    setAnswers({}); 
-    setIsFinished(false);
   }
 
   if (isFinished) {
     const correctCount = currentList.filter((item, i) => answers[i] === item.correctIndex).length;
     return (
       <div className="text-right animate-in zoom-in-95 duration-300">
-        <h2 className="text-2xl font-bold mb-6 text-gray-800">
-          {mode === "errors" ? "סיכום תרגול טעויות" : "כל הכבוד, סיימת!"}
-        </h2>
-        <div className="bg-gray-50 rounded-2xl p-6 mb-8 space-y-4 border border-gray-100 shadow-inner">
-          <div className="flex justify-between">
-            <span>שאלות בתרגול:</span>
-            <span className="font-bold">{currentList.length}</span>
-          </div>
-          <div className="flex justify-between text-green-600">
-            <span>תשובות נכונות:</span>
-            <span className="font-bold">{correctCount}</span>
-          </div>
-          {mode === "all" && (
-            <div className="flex justify-between text-red-500 border-t pt-2">
-              <span>מספר טעויות שנשמרו:</span>
-              <span className="font-bold">{wrongIds.size}</span>
-            </div>
-          )}
+        <h2 className="text-2xl font-bold mb-6 text-gray-800">{mode === "errors" ? "סיכום תרגול טעויות" : "סיימת את התרגול!"}</h2>
+        <div className="bg-gray-50 rounded-2xl p-6 mb-8 border border-gray-100 shadow-inner space-y-3">
+          <div className="flex justify-between"><span>נכונות:</span><b className="text-green-600 text-lg">{correctCount}</b></div>
+          <div className="flex justify-between text-red-500"><span>טעויות:</span><b className="text-lg">{wrongIds.size}</b></div>
         </div>
         <div className="grid gap-3">
-          <button 
-            onClick={() => { setMode("all"); setCurrentList(allQuestions); setIndex(0); setAnswers({}); setWrongIds(new Set()); setIsFinished(false); }} 
-            className="p-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg active:scale-95 transition-all"
-          >
-            תרגול חדש (כל השאלות)
-          </button>
-          
-          {mode === "all" && wrongIds.size > 0 && (
-            <button 
-              onClick={startErrors} 
-              className="p-4 border-2 border-red-500 text-red-600 rounded-2xl font-bold hover:bg-red-50 active:scale-95 transition-all"
-            >
-              תרגלי רק טעויות ({wrongIds.size})
-            </button>
+          <button onClick={() => { setMode("all"); setCurrentList(allQuestions); setIndex(0); setAnswers({}); setWrongIds(new Set()); setIsFinished(false); }} className="p-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg shadow-blue-100 active:scale-95 transition-all">תרגול חדש מהתחלה</button>
+          {wrongIds.size > 0 && mode === "all" && (
+            <button onClick={() => { setCurrentList(allQuestions.filter(x => wrongIds.has(x.id))); setMode("errors"); setIndex(0); setAnswers({}); setIsFinished(false); }} className="p-4 border-2 border-red-500 text-red-600 rounded-2xl font-bold hover:bg-red-50 active:scale-95 transition-all">תרגלי רק טעויות ({wrongIds.size})</button>
           )}
-          
-          <button onClick={onExit} className="p-4 text-gray-500 font-medium hover:underline">
-            חזרה לתפריט
-          </button>
+          <button onClick={onExit} className="p-4 text-gray-500 font-medium hover:underline">חזרה לתפריט</button>
         </div>
       </div>
     );
@@ -194,15 +141,12 @@ function PracticeView({ categoryName, allQuestions, onExit }: { categoryName: st
   return (
     <div className="text-right animate-in fade-in duration-300">
       <div className="flex justify-between items-center mb-4">
-        <span className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">{categoryName}</span>
-        <span className="text-xs text-gray-400 font-mono">שאלה {index + 1} מתוך {currentList.length}</span>
+        <span className="text-sm font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">{categoryName}</span>
+        <span className="text-sm text-gray-400 font-mono">{index + 1} / {currentList.length}</span>
       </div>
       
       <div className="w-full bg-gray-100 h-2.5 rounded-full mb-8 overflow-hidden">
-        <div 
-          className="bg-blue-500 h-full transition-all duration-500" 
-          style={{ width: `${((index + 1) / currentList.length) * 100}%` }} 
-        />
+        <div className="bg-blue-500 h-full transition-all duration-500" style={{ width: `${((index + 1) / currentList.length) * 100}%` }} />
       </div>
 
       <h3 className="text-xl font-bold mb-8 text-gray-800 leading-tight min-h-[4rem]">{q.text}</h3>
@@ -211,53 +155,30 @@ function PracticeView({ categoryName, allQuestions, onExit }: { categoryName: st
         {q.options.map((opt, i) => {
           let style = "w-full p-4 border-2 rounded-2xl text-right transition-all font-medium ";
           if (userSelection !== null) {
-            if (i === q.correctIndex) {
-              style += "bg-green-50 border-green-500 text-green-700 shadow-sm";
-            } else if (i === userSelection) {
-              style += "bg-red-50 border-red-500 text-red-700";
-            } else {
-              style += "opacity-40 border-gray-50 scale-95";
-            }
+            if (i === q.correctIndex) style += "bg-green-50 border-green-500 text-green-700 shadow-sm";
+            else if (i === userSelection) style += "bg-red-50 border-red-500 text-red-700";
+            else style += "opacity-40 border-gray-50 scale-95";
           } else {
             style += "border-gray-100 hover:border-blue-200 hover:bg-gray-50 active:scale-98";
           }
-          return (
-            <button 
-              key={i} 
-              onClick={() => handleSelect(i)} 
-              disabled={userSelection !== null} 
-              className={style}
-            >
-              {opt}
-            </button>
-          );
+          return <button key={i} onClick={() => handleSelect(i)} disabled={userSelection !== null} className={style}>{opt}</button>;
         })}
       </div>
 
-      {userSelection !== null && (
-        <div className="p-4 bg-gray-50 rounded-2xl mb-8 border border-gray-100 animate-in slide-in-from-top-2">
-          <p className="font-bold mb-1 text-gray-800">
-            {userSelection === q.correctIndex ? "✨ נכון מאוד!" : "❌ תשובה לא נכונה"}
-          </p>
-          {q.explanation && <p className="text-sm text-gray-600 leading-relaxed">{q.explanation}</p>}
-        </div>
-      )}
-
-      {/* --- אזור כפתורי הניווט --- */}
-      <div className="flex gap-3 mt-4 border-t pt-6">
+      <div className="flex gap-3 mt-8">
         <button 
-          onClick={goBack} 
+          onClick={() => index > 0 && setIndex(index - 1)} 
           disabled={index === 0} 
-          className="flex-1 p-4 bg-gray-100 border-2 border-gray-200 rounded-2xl font-bold text-gray-600 disabled:opacity-30 hover:bg-gray-200 transition-all active:scale-95"
+          className="flex-1 p-4 border-2 border-gray-200 rounded-2xl font-bold text-gray-400 disabled:opacity-0 hover:border-gray-300 hover:text-gray-600 transition-all active:scale-95"
         >
           חזור
         </button>
         <button 
-          onClick={goNext} 
+          onClick={() => index < currentList.length - 1 ? setIndex(index + 1) : setIsFinished(true)} 
           disabled={userSelection === null} 
           className="flex-[2] p-4 bg-gray-900 text-white rounded-2xl font-bold shadow-lg hover:bg-black active:scale-95 transition-all disabled:opacity-30"
         >
-          {index === currentList.length - 1 ? "לתוצאות" : "המשך"}
+          {index === currentList.length - 1 ? "לתוצאות" : "המשך לשאלה הבאה"}
         </button>
       </div>
     </div>
