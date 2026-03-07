@@ -31,7 +31,6 @@ export default function Home() {
         return;
       }
       
-      // סינון הקטגוריות שביקשת להוריד
       const forbidden = ["נהלים", "בטיחות"];
       const filtered = (data || []).filter(c => !forbidden.includes(c.name));
       
@@ -141,8 +140,14 @@ function PracticeView({ categoryName, allQuestions, onExit }: { categoryName: st
   return (
     <div className="text-right animate-in fade-in duration-300">
       <div className="flex justify-between items-center mb-4">
-        <span className="text-sm font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">{categoryName}</span>
-        <span className="text-sm text-gray-400 font-mono">{index + 1} / {currentList.length}</span>
+        {/* שינוי כאן: הבועה הפכה לכפתור חזרה ברור */}
+        <button 
+          onClick={onExit}
+          className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full hover:bg-blue-100 transition-all active:scale-95 flex items-center gap-1"
+        >
+          ✕ חזרה לתפריט
+        </button>
+        <span className="text-sm text-gray-400 font-mono font-bold">{index + 1} / {currentList.length}</span>
       </div>
       
       <div className="w-full bg-gray-100 h-2.5 rounded-full mb-8 overflow-hidden">
@@ -155,7 +160,7 @@ function PracticeView({ categoryName, allQuestions, onExit }: { categoryName: st
         {q.options.map((opt, i) => {
           let style = "w-full p-4 border-2 rounded-2xl text-right transition-all font-medium ";
           if (userSelection !== null) {
-            if (i === q.correctIndex) style += "bg-green-50 border-green-500 text-green-700 shadow-sm";
+            if (i === q.correctIndex) style += "bg-green-50 border-green-500 text-green-700 shadow-sm font-bold";
             else if (i === userSelection) style += "bg-red-50 border-red-500 text-red-700";
             else style += "opacity-40 border-gray-50 scale-95";
           } else {
