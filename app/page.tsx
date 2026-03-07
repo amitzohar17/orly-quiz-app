@@ -226,4 +226,4 @@ function Practice({ categoryName, questions, onBack }: { categoryName: string; q
       </div>
     </>
   );
-}
+} 
