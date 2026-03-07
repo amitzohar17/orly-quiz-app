@@ -71,7 +71,7 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-gray-100 p-4 flex items-center justify-center" dir="rtl">
       <div className="bg-white rounded-xl shadow-md max-w-lg w-full p-6">
-        {loading && <p className="text-center py-4">טוען נתונים...</p>}
+        {loading && <p className="text-center py-4 text-gray-500">טוען נתונים...</p>}
         {errorMsg && <p className="text-red-600 text-center mb-4">{errorMsg}</p>}
         
         {!loading && !selectedCategory && (
@@ -94,12 +94,11 @@ export default function Home() {
   );
 }
 
-/* ---------- Practice Component with "Back" functionality ---------- */
+/* ---------- Practice Component (With Navigation Logic) ---------- */
 function Practice({ categoryName, questions, onBack }: { categoryName: string; questions: UiQuestion[]; onBack: () => void }) {
   const [index, setIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number | null>>({}); 
   const [score, setScore] = useState(0);
-  const [answeredCount, setAnsweredCount] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
   const [wrongIds, setWrongIds] = useState<string[]>([]);
   const [currentQuestions, setCurrentQuestions] = useState<UiQuestion[]>(questions);
@@ -111,7 +110,6 @@ function Practice({ categoryName, questions, onBack }: { categoryName: string; q
     setSelectedAnswers({});
     setIsFinished(false);
     setScore(0);
-    setAnsweredCount(0);
     setWrongIds([]);
     setMode("all");
   }, [questions]);
@@ -122,13 +120,15 @@ function Practice({ categoryName, questions, onBack }: { categoryName: string; q
   function chooseAnswer(i: number) {
     if (selectedForCurrent !== null || isFinished || !q) return;
 
+    // שמירת התשובה בזיכרון הניווט
     setSelectedAnswers(prev => ({ ...prev, [index]: i }));
-    setAnsweredCount(prev => prev + 1);
 
     if (i === q.correctIndex) {
       setScore(prev => prev + 1);
-    } else if (!wrongIds.includes(q.id)) {
-      setWrongIds(prev => [...prev, q.id]);
+    } else {
+      if (!wrongIds.includes(q.id)) {
+        setWrongIds(prev => [...prev, q.id]);
+      }
     }
   }
 
@@ -146,19 +146,6 @@ function Practice({ categoryName, questions, onBack }: { categoryName: string; q
     }
   }
 
-  function restartWrongOnly() {
-    const filtered = questions.filter(item => wrongIds.includes(item.id));
-    if (filtered.length > 0) {
-      setCurrentQuestions(filtered);
-      setMode("wrong");
-      setIndex(0);
-      setSelectedAnswers({});
-      setScore(0);
-      setAnsweredCount(0);
-      setIsFinished(false);
-    }
-  }
-
   if (currentQuestions.length === 0) return <div className="text-center py-10"><p>אין שאלות בנושא זה.</p><button onClick={onBack} className="underline">חזרה</button></div>;
 
   if (isFinished) {
@@ -166,13 +153,12 @@ function Practice({ categoryName, questions, onBack }: { categoryName: string; q
       <div className="text-start">
         <h2 className="text-xl font-bold mb-4">{mode === "wrong" ? "סיכום טעויות" : "סיימת!"}</h2>
         <div className="bg-gray-50 p-4 rounded-lg space-y-2 mb-6">
-          <div className="flex justify-between"><span>ענית על:</span> <b>{answeredCount}</b></div>
           <div className="flex justify-between"><span>נכונות:</span> <b className="text-green-600">{score}</b></div>
           {mode === "all" && <div className="flex justify-between"><span>טעויות לתרגול:</span> <b className="text-red-600">{wrongIds.length}</b></div>}
         </div>
         <div className="flex flex-col gap-2">
-          <button className="p-4 bg-black text-white rounded-xl font-bold" onClick={() => { setCurrentQuestions(questions); setMode("all"); setIndex(0); setSelectedAnswers({}); setScore(0); setAnsweredCount(0); setIsFinished(false); setWrongIds([]); }}>תרגול חדש</button>
-          <button className="p-4 border-2 border-black rounded-xl font-bold disabled:opacity-30" disabled={wrongIds.length === 0} onClick={restartWrongOnly}>תרגלי רק טעויות ({wrongIds.length})</button>
+          <button className="p-4 bg-black text-white rounded-xl font-bold" onClick={() => { setCurrentQuestions(questions); setMode("all"); setIndex(0); setSelectedAnswers({}); setScore(0); setIsFinished(false); setWrongIds([]); }}>תרגול חדש</button>
+          <button className="p-4 border-2 border-black rounded-xl font-bold disabled:opacity-30" disabled={wrongIds.length === 0} onClick={() => { const filtered = questions.filter(item => wrongIds.includes(item.id)); if (filtered.length > 0) { setCurrentQuestions(filtered); setMode("wrong"); setIndex(0); setSelectedAnswers({}); setScore(0); setIsFinished(false); } }}>תרגלי רק טעויות ({wrongIds.length})</button>
           <button className="p-4 border rounded-xl" onClick={onBack}>חזרה לנושאים</button>
         </div>
       </div>
@@ -182,18 +168,18 @@ function Practice({ categoryName, questions, onBack }: { categoryName: string; q
   return (
     <>
       <div className="flex justify-between text-sm mb-2 text-gray-500">
-        <span>{categoryName} {mode === "wrong" && "(טעויות)"}</span>
+        <button onClick={onBack} className="underline">חזרה</button>
         <span>{index + 1} / {currentQuestions.length}</span>
       </div>
-      <div className="w-full bg-gray-200 h-2 rounded-full mb-6">
-        <div className="bg-blue-600 h-2 rounded-full transition-all" style={{ width: `${((index + 1) / currentQuestions.length) * 100}%` }} />
+      <div className="w-full bg-gray-200 h-2.5 rounded-full mb-6">
+        <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${((index + 1) / currentQuestions.length) * 100}%` }} />
       </div>
-      <p className="text-lg font-bold mb-6">{q?.text}</p>
+      <p className="text-lg font-bold mb-6 text-start leading-tight">{q?.text}</p>
       <div className="space-y-3">
         {q?.options.map((opt, i) => {
           let cls = "w-full p-4 border-2 rounded-xl text-start transition-all ";
           if (selectedForCurrent !== null) {
-            if (i === q.correctIndex) cls += "bg-green-100 border-green-500 text-green-800";
+            if (i === q.correctIndex) cls += "bg-green-100 border-green-500 text-green-800 font-bold";
             else if (i === selectedForCurrent) cls += "bg-red-100 border-red-500 text-red-800";
             else cls += "opacity-40 border-gray-100";
           } else cls += "hover:bg-gray-50 border-gray-200";
@@ -201,29 +187,29 @@ function Practice({ categoryName, questions, onBack }: { categoryName: string; q
         })}
       </div>
       {selectedForCurrent !== null && (
-        <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-100">
-          <p className="font-bold">{selectedForCurrent === q.correctIndex ? "נכון!" : "טעות..."}</p>
-          {q.explanation && <p className="text-sm mt-1">{q.explanation}</p>}
+        <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-100 text-start animate-in fade-in duration-300">
+          <p className="font-bold">{selectedForCurrent === q.correctIndex ? "✔ נכון מאוד!" : "❌ טעות, לא נורא..."}</p>
+          {q.explanation && <p className="text-sm mt-1 text-gray-700">{q.explanation}</p>}
         </div>
       )}
 
-      {/* כפתורי ניווט למטה */}
+      {/* אזור הכפתורים המשולב - כאן השינוי המרכזי! */}
       <div className="flex gap-3 mt-8">
         <button 
-          className="flex-1 p-4 border-2 border-black rounded-xl font-bold disabled:opacity-20 transition-all active:scale-95"
+          className="flex-1 p-4 border-2 border-black rounded-xl font-bold disabled:opacity-10 transition-all active:scale-95"
           disabled={index === 0}
           onClick={prevQuestion}
         >
           חזור
         </button>
         <button 
-          className="flex-[2] p-4 bg-black text-white rounded-xl font-bold disabled:opacity-50 shadow-lg transition-all active:scale-95" 
+          className="flex-[2] p-4 bg-black text-white rounded-xl font-bold disabled:opacity-50 shadow-md transition-all active:scale-95" 
           disabled={selectedForCurrent === null} 
           onClick={nextQuestion}
         >
-          {index === currentQuestions.length - 1 ? "לתוצאות" : "המשך"}
+          {index === currentQuestions.length - 1 ? "לתוצאות" : "המשך לשאלה הבאה"}
         </button>
       </div>
     </>
   );
-} 
+}
