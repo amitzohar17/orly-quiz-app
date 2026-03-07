@@ -119,19 +119,36 @@ function PracticeView({ categoryName, allQuestions, onExit }: { categoryName: st
 
   if (isFinished) {
     const correctCount = currentList.filter((item, i) => answers[i] === item.correctIndex).length;
+    // חישוב ציון באחוזים
+    const rawScore = (correctCount / currentList.length) * 100;
+    const finalScore = Math.round(rawScore);
+
     return (
       <div className="text-right animate-in zoom-in-95 duration-300">
-        <h2 className="text-2xl font-bold mb-6 text-gray-800">{mode === "errors" ? "סיכום תרגול טעויות" : "סיימת את התרגול!"}</h2>
-        <div className="bg-gray-50 rounded-2xl p-6 mb-8 border border-gray-100 shadow-inner space-y-3">
-          <div className="flex justify-between"><span>נכונות:</span><b className="text-green-600 text-lg">{correctCount}</b></div>
-          <div className="flex justify-between text-red-500"><span>טעויות:</span><b className="text-lg">{wrongIds.size}</b></div>
+        <h2 className="text-2xl font-bold mb-6 text-gray-800 text-center">{mode === "errors" ? "סיכום תרגול טעויות" : "סיימת את התרגול!"}</h2>
+        
+        {/* תצוגת ציון גדולה */}
+        <div className="mb-8 text-center">
+          <p className="text-gray-500 text-sm mb-1">הציון שלך:</p>
+          <div className={`text-6xl font-black ${finalScore >= 70 ? 'text-green-500' : 'text-orange-500'}`}>
+            {finalScore}
+          </div>
         </div>
+
+        <div className="bg-gray-50 rounded-2xl p-6 mb-8 border border-gray-100 shadow-inner space-y-3">
+          <div className="flex justify-between"><span>סה"כ שאלות:</span><b className="text-gray-700">{currentList.length}</b></div>
+          <div className="flex justify-between text-green-600"><span>תשובות נכונות:</span><b className="text-lg">{correctCount}</b></div>
+          {mode === "all" && (
+            <div className="flex justify-between text-red-500 border-t pt-2"><span>טעויות שנשמרו:</span><b className="text-lg">{wrongIds.size}</b></div>
+          )}
+        </div>
+
         <div className="grid gap-3">
           <button onClick={() => { setMode("all"); setCurrentList(allQuestions); setIndex(0); setAnswers({}); setWrongIds(new Set()); setIsFinished(false); }} className="p-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg shadow-blue-100 active:scale-95 transition-all">תרגול חדש מהתחלה</button>
           {wrongIds.size > 0 && mode === "all" && (
             <button onClick={() => { setCurrentList(allQuestions.filter(x => wrongIds.has(x.id))); setMode("errors"); setIndex(0); setAnswers({}); setIsFinished(false); }} className="p-4 border-2 border-red-500 text-red-600 rounded-2xl font-bold hover:bg-red-50 active:scale-95 transition-all">תרגלי רק טעויות ({wrongIds.size})</button>
           )}
-          <button onClick={onExit} className="p-4 text-gray-500 font-medium hover:underline">חזרה לתפריט</button>
+          <button onClick={onExit} className="p-4 text-gray-500 font-medium hover:underline text-center">חזרה לתפריט</button>
         </div>
       </div>
     );
@@ -140,7 +157,6 @@ function PracticeView({ categoryName, allQuestions, onExit }: { categoryName: st
   return (
     <div className="text-right animate-in fade-in duration-300">
       <div className="flex justify-between items-center mb-4">
-        {/* שינוי כאן: הבועה הפכה לכפתור חזרה ברור */}
         <button 
           onClick={onExit}
           className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full hover:bg-blue-100 transition-all active:scale-95 flex items-center gap-1"
