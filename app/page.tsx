@@ -62,12 +62,12 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-gray-50 p-4 flex items-center justify-center font-sans" dir="rtl">
       <div className="bg-white rounded-3xl shadow-xl max-w-lg w-full p-6 text-center border border-gray-100">
-        {loading && <p className="py-8 text-gray-400 animate-pulse">טוען נתונים...</p>}
+        {loading && <p className="py-8 text-gray-400 animate-pulse font-bold">טוען נתונים...</p>}
         {errorMsg && <p className="text-red-500 mb-4">{errorMsg}</p>}
         
         {!loading && !selectedCategory && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <h1 className="text-3xl font-black mb-6 text-gray-800">בואי נתרגל!</h1>
+            <h1 className="text-3xl font-black mb-6 text-gray-800 italic">אורלי בסביבה - תרגול</h1>
             <div className="grid gap-3">
               {categories.map((c) => (
                 <button 
@@ -99,7 +99,7 @@ function PracticeView({ categoryName, allQuestions, onExit }: { categoryName: st
   const [mode, setMode] = useState<"all" | "errors">("all");
   const [currentList, setCurrentList] = useState<UiQuestion[]>(allQuestions);
   const [index, setIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<number, number>>({}); // שומר תשובה לפי אינדקס השאלה
+  const [answers, setAnswers] = useState<Record<number, number>>({}); 
   const [wrongIds, setWrongIds] = useState<Set<string>>(new Set());
   const [isFinished, setIsFinished] = useState(false);
 
@@ -107,12 +107,16 @@ function PracticeView({ categoryName, allQuestions, onExit }: { categoryName: st
   const userSelection = answers[index] !== undefined ? answers[index] : null;
 
   function handleSelect(i: number) {
-    if (userSelection !== null) return; // מונע בחירה כפולה באותה שאלה
+    if (userSelection !== null) return; 
     
     setAnswers(prev => ({ ...prev, [index]: i }));
     
     if (i !== q.correctIndex) {
-      setWrongIds(prev => new Set(prev).add(q.id));
+      setWrongIds(prev => {
+        const newSet = new Set(prev);
+        newSet.add(q.id);
+        return newSet;
+      });
     }
   }
 
@@ -135,7 +139,7 @@ function PracticeView({ categoryName, allQuestions, onExit }: { categoryName: st
     setCurrentList(onlyErrors);
     setMode("errors");
     setIndex(0);
-    setAnswers({}); // מאפס תשובות לתרגול החדש
+    setAnswers({}); 
     setIsFinished(false);
   }
 
@@ -157,7 +161,7 @@ function PracticeView({ categoryName, allQuestions, onExit }: { categoryName: st
           </div>
           {mode === "all" && (
             <div className="flex justify-between text-red-500 border-t pt-2">
-              <span>טעויות שנשמרו:</span>
+              <span>מספר טעויות שנשמרו:</span>
               <span className="font-bold">{wrongIds.size}</span>
             </div>
           )}
@@ -167,7 +171,7 @@ function PracticeView({ categoryName, allQuestions, onExit }: { categoryName: st
             onClick={() => { setMode("all"); setCurrentList(allQuestions); setIndex(0); setAnswers({}); setWrongIds(new Set()); setIsFinished(false); }} 
             className="p-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg active:scale-95 transition-all"
           >
-            תרגול חדש מהתחלה
+            תרגול חדש (כל השאלות)
           </button>
           
           {mode === "all" && wrongIds.size > 0 && (
@@ -180,7 +184,7 @@ function PracticeView({ categoryName, allQuestions, onExit }: { categoryName: st
           )}
           
           <button onClick={onExit} className="p-4 text-gray-500 font-medium hover:underline">
-            חזרה לתפריט הראשי
+            חזרה לתפריט
           </button>
         </div>
       </div>
@@ -190,8 +194,8 @@ function PracticeView({ categoryName, allQuestions, onExit }: { categoryName: st
   return (
     <div className="text-right animate-in fade-in duration-300">
       <div className="flex justify-between items-center mb-4">
-        <span className="text-sm font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">{categoryName}</span>
-        <span className="text-sm text-gray-400 font-mono">{index + 1} / {currentList.length}</span>
+        <span className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">{categoryName}</span>
+        <span className="text-xs text-gray-400 font-mono">שאלה {index + 1} מתוך {currentList.length}</span>
       </div>
       
       <div className="w-full bg-gray-100 h-2.5 rounded-full mb-8 overflow-hidden">
@@ -233,18 +237,18 @@ function PracticeView({ categoryName, allQuestions, onExit }: { categoryName: st
       {userSelection !== null && (
         <div className="p-4 bg-gray-50 rounded-2xl mb-8 border border-gray-100 animate-in slide-in-from-top-2">
           <p className="font-bold mb-1 text-gray-800">
-            {userSelection === q.correctIndex ? "✨ נכון!" : "❌ טעות..."}
+            {userSelection === q.correctIndex ? "✨ נכון מאוד!" : "❌ תשובה לא נכונה"}
           </p>
           {q.explanation && <p className="text-sm text-gray-600 leading-relaxed">{q.explanation}</p>}
         </div>
       )}
 
-      {/* אזור הניווט - כפתור חזור משמאל, המשך מימין */}
-      <div className="flex gap-3 mt-4">
+      {/* --- אזור כפתורי הניווט --- */}
+      <div className="flex gap-3 mt-4 border-t pt-6">
         <button 
           onClick={goBack} 
           disabled={index === 0} 
-          className="flex-1 p-4 border-2 border-gray-200 rounded-2xl font-bold text-gray-400 disabled:opacity-0 hover:border-gray-300 hover:text-gray-600 transition-all"
+          className="flex-1 p-4 bg-gray-100 border-2 border-gray-200 rounded-2xl font-bold text-gray-600 disabled:opacity-30 hover:bg-gray-200 transition-all active:scale-95"
         >
           חזור
         </button>
@@ -253,7 +257,7 @@ function PracticeView({ categoryName, allQuestions, onExit }: { categoryName: st
           disabled={userSelection === null} 
           className="flex-[2] p-4 bg-gray-900 text-white rounded-2xl font-bold shadow-lg hover:bg-black active:scale-95 transition-all disabled:opacity-30"
         >
-          {index === currentList.length - 1 ? "לתוצאות" : "המשך לשאלה הבאה"}
+          {index === currentList.length - 1 ? "לתוצאות" : "המשך"}
         </button>
       </div>
     </div>
