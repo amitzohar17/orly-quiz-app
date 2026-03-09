@@ -62,9 +62,9 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-gray-100 p-4 flex flex-col items-center justify-start pt-6 font-sans" dir="rtl">
       
-      {/* --- לוגו אורלי בסביבה --- */}
+      {/* --- לוגו אורלי בסביבה - מוגדל --- */}
       <div className="mb-6 flex flex-col items-center animate-in fade-in duration-1000">
-        <div className="relative w-32 h-32 mb-2">
+        <div className="relative w-48 h-48 mb-2"> {/* הגדלנו מ-w-32 ל-w-48 */}
           <Image 
             src="/logo.png" 
             alt="לוגו אורלי בסביבה" 
@@ -81,7 +81,7 @@ export default function Home() {
         
         {!loading && !selectedCategory && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <h1 className="text-2xl font-black mb-8 text-gray-800">מוכנה לתרגל?</h1>
+            <h1 className="text-2xl font-black mb-8 text-gray-800">נושאים לתרגול</h1>
             <div className="grid gap-4">
               {categories.map((c) => (
                 <button 
