@@ -24,8 +24,10 @@ export default function Home() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<CategoryRow | null>(null);
+  const [selectedQuiz, setSelectedQuiz] = useState<number | null>(null); // שאלון נבחר
   const [questions, setQuestions] = useState<UiQuestion[]>([]);
 
+  // התחברות ובדיקת הרשאות
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
@@ -47,10 +49,28 @@ export default function Home() {
     setLoading(false);
   }
 
-  async function startCategory(c: CategoryRow) {
+  // מעבר למסך בחירת השאלונים בתוך הקורס
+  function prepareQuizSelection(c: CategoryRow) {
+    setSelectedCategory(c);
+    setSelectedQuiz(null); // מוודא שמתחילים מבחירת שאלון
+  }
+
+  // טעינת השאלות של שאלון ספציפי
+  async function loadQuestions(quizNum: number) {
+    if (!selectedCategory) return;
     setLoading(true);
-    const { data, error } = await supabase.from("questions").select("*").eq("category_id", c.id);
-    if (error) { setLoading(false); return; }
+    
+    const { data, error } = await supabase
+      .from("questions")
+      .select("*")
+      .eq("category_id", selectedCategory.id)
+      .eq("quiz_number", quizNum); // סינון לפי מספר השאלון שעדכנת ידנית
+
+    if (error) { 
+      console.error(error);
+      setLoading(false); 
+      return; 
+    }
     
     const mapped: UiQuestion[] = (data || []).map(q => ({
       id: String(q.id),
@@ -61,8 +81,9 @@ export default function Home() {
       correct_indices: q.correct_indices,
       type: q.type || 'multiple_choice'
     }));
+    
     setQuestions(mapped);
-    setSelectedCategory(c);
+    setSelectedQuiz(quizNum);
     setLoading(false);
   }
 
@@ -75,6 +96,8 @@ export default function Home() {
       </div>
 
       <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-gray-200/50 max-w-lg w-full p-10 border border-gray-50 min-h-[500px] flex flex-col transition-all">
+        
+        {/* שלב 1: התחברות */}
         {!userEmail ? (
           <form onSubmit={handleLogin} className="animate-in fade-in slide-in-from-top-4">
             <h1 className="text-3xl font-black mb-8 text-center">התחברות</h1>
@@ -91,7 +114,10 @@ export default function Home() {
               {loading ? "מתחבר..." : "כניסה"}
             </button>
           </form>
-        ) : !selectedCategory ? (
+        ) 
+        
+        /* שלב 2: בחירת קורס (קטגוריה) */
+        : !selectedCategory ? (
           <div className="animate-in fade-in">
              <div className="flex justify-between items-center mb-8">
                 <h1 className="text-2xl font-black">הקורסים שלי</h1>
@@ -99,21 +125,56 @@ export default function Home() {
              </div>
              <div className="grid gap-4">
               {categories.map((c) => (
-                <button key={c.id} className="w-full text-right p-6 bg-white border-2 border-gray-100 rounded-[1.8rem] hover:border-blue-500 hover:bg-blue-50 transition-all font-bold text-gray-700 text-lg flex justify-between items-center group shadow-sm" onClick={() => startCategory(c)}>
+                <button key={c.id} className="w-full text-right p-6 bg-white border-2 border-gray-100 rounded-[1.8rem] hover:border-blue-500 hover:bg-blue-50 transition-all font-bold text-gray-700 text-lg flex justify-between items-center group shadow-sm" onClick={() => prepareQuizSelection(c)}>
                   {c.name}
                   <span className="text-blue-500 opacity-0 group-hover:opacity-100 transition-all">←</span>
                 </button>
               ))}
             </div>
           </div>
-        ) : (
-          <PracticeView allQuestions={questions} categoryName={selectedCategory.name} onExit={() => setSelectedCategory(null)} />
+        ) 
+
+        /* שלב 3: בחירת שאלון בתוך הקורס */
+        : !selectedQuiz ? (
+          <div className="animate-in fade-in flex flex-col h-full">
+            <div className="mb-6">
+              <button onClick={() => setSelectedCategory(null)} className="text-sm font-bold text-blue-600 mb-2">← חזרה לקורסים</button>
+              <h1 className="text-2xl font-black">{selectedCategory.name}</h1>
+              <p className="text-gray-500 font-medium">בחר שאלון לתרגול:</p>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              {[1, 2, 3, 4, 5, 6, 7].map((num) => (
+                <button 
+                  key={num} 
+                  onClick={() => loadQuestions(num)}
+                  disabled={loading}
+                  className="p-6 bg-gray-50 border-2 border-transparent rounded-3xl hover:border-blue-500 hover:bg-white transition-all text-center flex flex-col items-center justify-center gap-2 group shadow-sm disabled:opacity-50"
+                >
+                  <span className="text-3xl">📝</span>
+                  <span className="font-black text-gray-800 text-lg">שאלון {num}</span>
+                  <span className="text-[10px] text-gray-400 font-bold group-hover:text-blue-500">התחל תרגול</span>
+                </button>
+              ))}
+            </div>
+            {loading && <p className="text-center mt-4 text-blue-500 font-bold animate-pulse">טוען שאלות...</p>}
+          </div>
+        )
+
+        /* שלב 4: התרגול עצמו */
+        : (
+          <PracticeView 
+            allQuestions={questions} 
+            categoryName={`${selectedCategory.name} - שאלון ${selectedQuiz}`} 
+            onExit={() => setSelectedQuiz(null)} 
+          />
         )}
       </div>
     </main>
   );
 }
 
+/* ---------- PracticeView Component (ללא שינוי לוגיקה, רק התאמות קטנות) ---------- */
 function PracticeView({ categoryName, allQuestions, onExit }: { categoryName: string, allQuestions: UiQuestion[], onExit: () => void }) {
   const [currentQuestions, setCurrentQuestions] = useState<UiQuestion[]>(allQuestions);
   const [index, setIndex] = useState(0);
@@ -125,6 +186,16 @@ function PracticeView({ categoryName, allQuestions, onExit }: { categoryName: st
   const q = currentQuestions[index];
   const userSelection = answers[index];
 
+  // בדיקת מקרה שבו שאלון ריק (אם לא הזנת שאלות למספר הזה)
+  if (allQuestions.length === 0) {
+    return (
+      <div className="text-center py-10">
+        <p className="text-xl font-bold text-gray-400 mb-6">לא נמצאו שאלות בשאלון זה</p>
+        <button onClick={onExit} className="p-4 bg-blue-600 text-white rounded-2xl w-full font-bold">חזור</button>
+      </div>
+    );
+  }
+
   function handleSelect(i: number) {
     if (showFeedback && (q.type === 'multi' || q.type === 'order')) return;
     if (userSelection !== undefined && (q.type === 'multiple_choice' || q.type === 'boolean')) return;
@@ -134,7 +205,6 @@ function PracticeView({ categoryName, allQuestions, onExit }: { categoryName: st
       const newSel = currentSel.includes(i) ? currentSel.filter(item => item !== i) : [...currentSel, i];
       setAnswers({ ...answers, [index]: newSel });
     } else {
-      // אמריקאי או בוליאני - מסמנים ומראים פידבק מיד
       setAnswers({ ...answers, [index]: i });
       if (i !== q.correctIndex) setWrongIndices(prev => new Set(prev).add(index));
     }
@@ -204,7 +274,6 @@ function PracticeView({ categoryName, allQuestions, onExit }: { categoryName: st
           let style = "w-full p-5 border-2 rounded-[1.5rem] text-right transition-all text-lg font-bold flex items-center justify-between ";
           const isSelected = Array.isArray(userSelection) ? userSelection.includes(i) : userSelection === i;
           
-          // לוגיקת צבעים (פידבק)
           if ((!isManualCheck && userSelection !== undefined) || (isManualCheck && showFeedback)) {
             const isCorrect = q.type === 'order' 
               ? q.correct_indices?.[Array.isArray(userSelection) ? userSelection.indexOf(i) : -1] === i 
