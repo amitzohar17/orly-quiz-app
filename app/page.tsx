@@ -27,7 +27,6 @@ export default function Home() {
   const [selectedQuiz, setSelectedQuiz] = useState<number | null>(null);
   const [questions, setQuestions] = useState<UiQuestion[]>([]);
 
-  // התחברות ובדיקת הרשאות
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
@@ -94,7 +93,6 @@ export default function Home() {
       </div>
 
       <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-gray-200/50 max-w-lg w-full p-10 border border-gray-50 min-h-[500px] flex flex-col transition-all">
-        
         {!userEmail ? (
           <form onSubmit={handleLogin} className="animate-in fade-in slide-in-from-top-4">
             <h1 className="text-3xl font-black mb-8 text-center">התחברות</h1>
@@ -111,9 +109,7 @@ export default function Home() {
               {loading ? "מתחבר..." : "כניסה"}
             </button>
           </form>
-        ) 
-        
-        : !selectedCategory ? (
+        ) : !selectedCategory ? (
           <div className="animate-in fade-in">
              <div className="flex justify-between items-center mb-8">
                 <h1 className="text-2xl font-black">הקורסים שלי</h1>
@@ -128,40 +124,25 @@ export default function Home() {
               ))}
             </div>
           </div>
-        ) 
-
-        : !selectedQuiz ? (
+        ) : !selectedQuiz ? (
           <div className="animate-in fade-in flex flex-col h-full">
             <div className="mb-6">
               <button onClick={() => setSelectedCategory(null)} className="text-sm font-bold text-blue-600 mb-2">← חזרה לקורסים</button>
               <h1 className="text-2xl font-black">{selectedCategory.name}</h1>
               <p className="text-gray-500 font-medium">בחר שאלון לתרגול:</p>
             </div>
-            
             <div className="grid grid-cols-2 gap-4">
               {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
-                <button 
-                  key={num} 
-                  onClick={() => loadQuestions(num)}
-                  disabled={loading}
-                  className="p-6 bg-gray-50 border-2 border-transparent rounded-3xl hover:border-blue-500 hover:bg-white transition-all text-center flex flex-col items-center justify-center gap-2 group shadow-sm disabled:opacity-50"
-                >
+                <button key={num} onClick={() => loadQuestions(num)} disabled={loading} className="p-6 bg-gray-50 border-2 border-transparent rounded-3xl hover:border-blue-500 hover:bg-white transition-all text-center flex flex-col items-center justify-center gap-2 group shadow-sm disabled:opacity-50">
                   <span className="text-3xl">📝</span>
                   <span className="font-black text-gray-800 text-lg">שאלון {num}</span>
                   <span className="text-[10px] text-gray-400 font-bold group-hover:text-blue-500">התחל תרגול</span>
                 </button>
               ))}
             </div>
-            {loading && <p className="text-center mt-4 text-blue-500 font-bold animate-pulse">טוען שאלות...</p>}
           </div>
-        )
-
-        : (
-          <PracticeView 
-            allQuestions={questions} 
-            categoryName={`${selectedCategory.name} - שאלון ${selectedQuiz}`} 
-            onExit={() => setSelectedQuiz(null)} 
-          />
+        ) : (
+          <PracticeView allQuestions={questions} categoryName={`${selectedCategory.name} - שאלון ${selectedQuiz}`} onExit={() => setSelectedQuiz(null)} />
         )}
       </div>
     </main>
@@ -180,6 +161,8 @@ function PracticeView({ categoryName, allQuestions, onExit }: { categoryName: st
   const q = currentQuestions[index];
   const userSelection = answers[index];
 
+  const isManualCheck = q?.type === 'multi' || q?.type === 'order' || q?.type === 'multiple_selection';
+
   if (allQuestions.length === 0) {
     return (
       <div className="text-center py-10">
@@ -188,9 +171,6 @@ function PracticeView({ categoryName, allQuestions, onExit }: { categoryName: st
       </div>
     );
   }
-
-  // הגדרת משתנה המזהה אם זו שאלה שדורשת בדיקה ידנית (כפתור "בדיקה")
-  const isManualCheck = q.type === 'multi' || q.type === 'order' || q.type === 'multiple selection';
 
   function handleSelect(i: number) {
     if (showFeedback && isManualCheck) return;
@@ -209,9 +189,7 @@ function PracticeView({ categoryName, allQuestions, onExit }: { categoryName: st
   function checkAnswer() {
     const correctOnes = q.correct_indices || [];
     const userOnes = answers[index] || [];
-    const isCorrect = correctOnes.length === userOnes.length && correctOnes.every((v, idx) => 
-      q.type === 'order' ? v === userOnes[idx] : userOnes.includes(v)
-    );
+    const isCorrect = correctOnes.length === userOnes.length && correctOnes.every((v) => userOnes.includes(v));
     if (!isCorrect) setWrongIndices(prev => new Set(prev).add(index));
     setShowFeedback(true);
   }
@@ -231,10 +209,9 @@ function PracticeView({ categoryName, allQuestions, onExit }: { categoryName: st
     return (
       <div className="text-center animate-in zoom-in duration-300 flex flex-col items-center flex-1">
         <h2 className="text-3xl font-black mb-6">סיכום תרגול</h2>
-        <div className="w-32 h-32 rounded-full border-8 border-blue-50 flex items-center justify-center mb-6 bg-blue-50/30">
-          <div className={`text-4xl font-black ${score >= 70 ? 'text-green-500' : 'text-orange-500'}`}>{score}</div>
-        </div>
+        <div className="w-32 h-32 rounded-full border-8 border-blue-50 flex items-center justify-center mb-6 bg-blue-50/30 text-4xl font-black text-blue-600">{score}</div>
         <p className="text-xl font-bold mb-8 text-gray-600">הצלחת ב-{correctCount} מתוך {currentQuestions.length}</p>
+        
         <div className="grid gap-3 w-full mt-auto">
           {wrongIndices.size > 0 && (
             <button onClick={() => {
@@ -251,41 +228,30 @@ function PracticeView({ categoryName, allQuestions, onExit }: { categoryName: st
   return (
     <div className="text-right flex flex-col h-full flex-1">
       <div className="flex justify-between items-center mb-6">
-        <div className="flex flex-col">
-          <button onClick={onExit} className="text-xs font-black text-blue-600 mb-1">✕ סגור</button>
-          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{categoryName}</span>
-        </div>
-        <div className="flex flex-col items-end">
-          <span className="text-sm font-black text-gray-800">{index + 1}/{currentQuestions.length}</span>
-          <div className="w-24 h-1.5 bg-gray-100 rounded-full mt-1 overflow-hidden">
-             <div className="h-full bg-blue-500 transition-all" style={{ width: `${((index + 1) / currentQuestions.length) * 100}%` }}></div>
-          </div>
-        </div>
+        <button onClick={onExit} className="text-xs font-black text-blue-600">✕ סגור</button>
+        <span className="text-sm font-black text-gray-800">{index + 1}/{currentQuestions.length}</span>
       </div>
 
-      <h3 className="text-2xl font-black mb-6 leading-tight text-gray-800">{q.text}</h3>
+      {/* הוספת whitespace-pre-line לתמיכה בירידת שורה מהדאטה-בייס */}
+      <h3 className="text-2xl font-black mb-6 leading-tight text-gray-800 whitespace-pre-line">{q.text}</h3>
       
-      <div className={`grid gap-3 mb-8 ${q.type === 'boolean' ? 'grid-cols-2' : 'grid-cols-1'}`}>
+      <div className="grid gap-3 mb-8">
         {q.options.map((opt, i) => {
           let style = "w-full p-5 border-2 rounded-[1.5rem] text-right transition-all text-lg font-bold flex items-center justify-between ";
           const isSelected = Array.isArray(userSelection) ? userSelection.includes(i) : userSelection === i;
           
           if ((!isManualCheck && userSelection !== undefined) || (isManualCheck && showFeedback)) {
-            // לוגיקה מעודכנת: זיהוי אם אופציה זו היא חלק מהתשובה הנכונה
-            const isCorrectOption = !isManualCheck 
-              ? i === q.correctIndex 
-              : q.correct_indices?.includes(i);
+            const isCorrectOption = isManualCheck 
+              ? q.correct_indices?.includes(i) 
+              : i === q.correctIndex;
             
-            if (isCorrectOption) {
-              style += "bg-green-50 border-green-500 text-green-700 shadow-inner";
-            } else if (isSelected) {
-              style += "bg-red-50 border-red-500 text-red-700";
-            } else {
-              style += "opacity-40 grayscale-[0.5] border-gray-50";
-            }
+            if (isCorrectOption) style += "bg-green-50 border-green-500 text-green-700 shadow-inner";
+            else if (isSelected) style += "bg-red-50 border-red-500 text-red-700";
+            else style += "opacity-40 border-gray-50";
+          } else if (isSelected) {
+            style += "border-blue-500 bg-blue-50 shadow-md transform scale-[1.01]";
           } else {
-            if (isSelected) style += "border-blue-500 bg-blue-50 shadow-md transform scale-[1.01]";
-            else style += "border-gray-100 hover:border-gray-200 hover:bg-gray-50";
+            style += "border-gray-100 hover:bg-gray-50";
           }
           
           return (
@@ -302,29 +268,11 @@ function PracticeView({ categoryName, allQuestions, onExit }: { categoryName: st
       </div>
 
       <div className="mt-auto flex gap-3">
-        <button 
-          onClick={() => { if (index > 0) { setIndex(index - 1); setShowFeedback(false); } }} 
-          className={`flex-1 p-5 border-2 border-gray-100 rounded-3xl font-black text-gray-400 transition-all ${index === 0 ? 'opacity-0 pointer-events-none' : ''}`}
-        >
-          חזור
-        </button>
-        
+        <button onClick={() => { if (index > 0) { setIndex(index - 1); setShowFeedback(false); } }} className={`flex-1 p-5 border-2 border-gray-100 rounded-3xl font-black text-gray-400 ${index === 0 ? 'opacity-0' : ''}`}>חזור</button>
         {isManualCheck && !showFeedback ? (
-          <button 
-            onClick={checkAnswer} 
-            disabled={!userSelection || userSelection.length === 0} 
-            className="flex-[2] p-5 bg-blue-600 text-white rounded-3xl font-black text-xl shadow-lg disabled:bg-gray-100 disabled:text-gray-300 transition-all"
-          >
-            בדיקה
-          </button>
+          <button onClick={checkAnswer} disabled={!userSelection || (Array.isArray(userSelection) && userSelection.length === 0)} className="flex-[2] p-5 bg-blue-600 text-white rounded-3xl font-black text-xl shadow-lg disabled:bg-gray-100">בדיקה</button>
         ) : (
-          <button 
-            onClick={handleNext} 
-            disabled={userSelection === undefined} 
-            className="flex-[2] p-5 bg-gray-900 text-white rounded-3xl font-black text-xl shadow-lg disabled:bg-gray-100 transition-all active:scale-95"
-          >
-            {index < currentQuestions.length - 1 ? "המשך" : "סיום"}
-          </button>
+          <button onClick={handleNext} disabled={userSelection === undefined} className="flex-[2] p-5 bg-gray-900 text-white rounded-3xl font-black text-xl shadow-lg disabled:bg-gray-100">המשך</button>
         )}
       </div>
     </div>
