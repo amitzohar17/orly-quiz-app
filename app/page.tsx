@@ -142,7 +142,7 @@ export default function Home() {
             </div>
           </div>
         ) : (
-          <PracticeView allQuestions={questions} categoryName={`${selectedCategory.name} - שאלון ${selectedQuiz}`} onExit={() => setSelectedQuiz(null)} />
+          <PracticeView allQuestions={questions} categoryName={selectedCategory.name} quizNum={selectedQuiz} onExit={() => setSelectedQuiz(null)} />
         )}
       </div>
     </main>
@@ -150,7 +150,7 @@ export default function Home() {
 }
 
 /* ---------- PracticeView Component ---------- */
-function PracticeView({ categoryName, allQuestions, onExit }: { categoryName: string, allQuestions: UiQuestion[], onExit: () => void }) {
+function PracticeView({ categoryName, quizNum, allQuestions, onExit }: { categoryName: string, quizNum: number, allQuestions: UiQuestion[], onExit: () => void }) {
   const [currentQuestions, setCurrentQuestions] = useState<UiQuestion[]>(allQuestions);
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<number, any>>({}); 
@@ -228,11 +228,19 @@ function PracticeView({ categoryName, allQuestions, onExit }: { categoryName: st
   return (
     <div className="text-right flex flex-col h-full flex-1">
       <div className="flex justify-between items-center mb-6">
-        <button onClick={onExit} className="text-xs font-black text-blue-600">✕ סגור</button>
-        <span className="text-sm font-black text-gray-800">{index + 1}/{currentQuestions.length}</span>
+        {/* החזרת שם הקורס ומספר השאלון מתחת לכפתור הסגירה */}
+        <div className="flex flex-col">
+          <button onClick={onExit} className="text-xs font-black text-blue-600 mb-1 text-right">✕ סגור</button>
+          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{categoryName} | שאלון {quizNum}</span>
+        </div>
+        <div className="flex flex-col items-end">
+          <span className="text-sm font-black text-gray-800">{index + 1}/{currentQuestions.length}</span>
+          <div className="w-24 h-1.5 bg-gray-100 rounded-full mt-1 overflow-hidden">
+             <div className="h-full bg-blue-500 transition-all" style={{ width: `${((index + 1) / currentQuestions.length) * 100}%` }}></div>
+          </div>
+        </div>
       </div>
 
-      {/* הוספת whitespace-pre-line לתמיכה בירידת שורה מהדאטה-בייס */}
       <h3 className="text-2xl font-black mb-6 leading-tight text-gray-800 whitespace-pre-line">{q.text}</h3>
       
       <div className="grid gap-3 mb-8">
