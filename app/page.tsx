@@ -51,7 +51,6 @@ export default function Home() {
     setLoading(false);
   }
 
-  // שליפת מספרי השאלונים הקיימים באמת עבור הקורס הזה (ללא הגבלת כמות)
   async function prepareQuizSelection(c: CategoryRow) {
     setSelectedCategory(c);
     setSelectedQuiz(null);
@@ -96,14 +95,17 @@ export default function Home() {
       } else if (q.type === 'open') {
         opts = [];
       } else if (Array.isArray(q.options_list) && q.options_list.length > 0) {
-        // פיצ'ר חדש: אם יש מערך מסיחים דינמי (למשל 6, 10 או יותר מסיחים) - ניקח אותו ישירות
         opts = q.options_list.filter((val: any) => val !== null && val !== undefined && val !== "");
       } else {
-        // מנגנון תאימות לאחור: אם אין רשימה מורחבת, ניקח את עמודות ה-A עד D הקיימות שלך
         opts = [q.option_a, q.option_b, q.option_c, q.option_d].filter(
           (val) => val !== null && val !== undefined && val !== ""
         );
       }
+
+      // הבטחת המרה של correct_indices למספרים בלבד כדי למנוע השוואות שגויות בין טקסט למספר
+      const parsedIndices = Array.isArray(q.correct_indices) 
+        ? q.correct_indices.map((val: any) => Number(val)) 
+        : null;
 
       return {
         id: String(q.id),
@@ -111,7 +113,7 @@ export default function Home() {
         text: q.text,
         options: opts,
         correctIndex: q.correct_index !== null ? Number(q.correct_index) : null,
-        correct_indices: Array.isArray(q.correct_indices) ? q.correct_indices : null,
+        correct_indices: parsedIndices,
         type: q.type || 'multiple_choice',
         image_url: q.image_url,
         open_answer_feedback: q.open_answer_feedback
@@ -252,15 +254,16 @@ function PracticeView({ categoryName, quizNum, allQuestions, onExit }: { categor
       return;
     }
 
+    const correctOnes = q.correct_indices || [];
+    const userOnes = answers[index] || [];
+
     if (q.type === 'order') {
-      const correctOnes = q.correct_indices || [];
-      const userOnes = answers[index] || [];
-      const isCorrect = correctOnes.length === userOnes.length && correctOnes.every((v, idx) => userOnes[idx] === v);
+      // בדיקה קפדנית בשאלת דירוג: האם המערכים זהים באורכם ובדיוק באותו הסדר רציף
+      const isCorrect = correctOnes.length === userOnes.length && correctOnes.every((v, idx) => Number(userOnes[idx]) === Number(v));
       if (!isCorrect) setWrongIndices(prev => new Set(prev).add(index));
     } else {
-      const correctOnes = q.correct_indices || [];
-      const userOnes = answers[index] || [];
-      const isCorrect = correctOnes.length === userOnes.length && correctOnes.every((v) => userOnes.includes(v));
+      // בדיקה בשאלת בחירה מרובה: האם כל מה שנבחר קיים במערך הנכון
+      const isCorrect = correctOnes.length === userOnes.length && correctOnes.every((v) => userOnes.includes(Number(v)));
       if (!isCorrect) setWrongIndices(prev => new Set(prev).add(index));
     }
     
@@ -351,14 +354,28 @@ function PracticeView({ categoryName, quizNum, allQuestions, onExit }: { categor
             let style = "w-full p-5 border-2 rounded-[1.5rem] text-right transition-all text-lg font-bold flex items-center justify-between ";
             const isSelected = Array.isArray(userSelection) ? userSelection.includes(i) : userSelection === i;
             
-            if ((!isManualCheck && userSelection !== undefined) || (isManualCheck && showFeedback)) {
-              const isCorrectOption = q.type === 'multiple_selection' || q.type === 'multi' || q.type === 'order'
-                ? q.correct_indices?.includes(i) 
-                : i === q.correctIndex;
+            // לוגיקת צביעת הפידבק המתוקנת
+            if (userSelection !== undefined && (!isManualCheck || showFeedback)) {
+              let isCorrectOption = false;
+
+              if (q.type === 'multiple_selection' || q.type === 'multi') {
+                isCorrectOption = q.correct_indices?.includes(i) || false;
+              } else if (q.type === 'order') {
+                // בדירוג: האם המשתמש מיקם את הסעיף הספציפי הזה באינדקס הנכון שלו במערך
+                const userPos = Array.isArray(userSelection) ? userSelection.indexOf(i) : -1;
+                const correctPos = q.correct_indices?.indexOf(i) || -1;
+                isCorrectOption = userPos === correctPos && userPos !== -1;
+              } else {
+                isCorrectOption = i === q.correctIndex;
+              }
               
-              if (isCorrectOption) style += "bg-green-50 border-green-500 text-green-700 shadow-inner";
-              else if (isSelected) style += "bg-red-50 border-red-500 text-red-700";
-              else style += "opacity-40 border-gray-50";
+              if (isCorrectOption) {
+                style += "bg-green-50 border-green-500 text-green-700 shadow-inner";
+              } else if (isSelected) {
+                style += "bg-red-50 border-red-500 text-red-700";
+              } else {
+                style += "opacity-40 border-gray-50";
+              }
             } else if (isSelected) {
               style += "border-blue-500 bg-blue-50 shadow-md transform scale-[1.01]";
             } else {
@@ -368,11 +385,15 @@ function PracticeView({ categoryName, quizNum, allQuestions, onExit }: { categor
             return (
               <button key={i} onClick={() => handleSelect(i)} className={style}>
                 <span>{opt}</span>
+                
+                {/* תצוגת אינדקס בחירת המשתמש בזמן לחיצה */}
                 {isSelected && (
                   <span className="bg-blue-600 text-white w-7 h-7 rounded-full flex items-center justify-center text-xs shadow-sm font-black">
                     {q.type === 'order' ? (Array.isArray(userSelection) ? userSelection.indexOf(i) + 1 : '✓') : '✓'}
                   </span>
                 )}
+                
+                {/* פיצ'ר חשוב: חשיפת המיקום הנכון של הסעיף בדירוג במידה והמשתמש טעה */}
                 {!isSelected && q.type === 'order' && showFeedback && q.correct_indices?.includes(i) && (
                   <span className="bg-green-600 text-white w-7 h-7 rounded-full flex items-center justify-center text-xs shadow-sm font-black">
                     {q.correct_indices.indexOf(i) + 1}
