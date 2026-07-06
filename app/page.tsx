@@ -104,7 +104,7 @@ export default function Home() {
 
       // הבטחת המרה מוחלטת למספרים נקיים
       const parsedIndices = Array.isArray(q.correct_indices) 
-        ? q.correct_indices.map((val: any) => parseInt(String(val), 10)).filter(v => !isNaN(v))
+        ? q.correct_indices.map((val: any) => parseInt(String(val), 10)).filter((v: any) => !isNaN(v))
         : null;
 
       return {
