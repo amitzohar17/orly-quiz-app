@@ -390,9 +390,9 @@ function PracticeView({ categoryName, quizNum, allQuestions, onExit }: { categor
                 )}
                 
                 {/* הצגת מספר השלב הנכון בצבע ירוק ליד האפשרות אם המשתמש טעה בדירוג שלה */}
-                {!isCorrectOption && q.type === 'order' && showFeedback && q.correct_indices && q.correct_indices.includes(Number(i)) && (
+                {userSelection !== undefined && showFeedback && q.type === 'order' && (answers[index]?.indexOf(i) !== q.correct_indices?.indexOf(Number(i))) && (
                   <span className="bg-green-600 text-white w-7 h-7 rounded-full flex items-center justify-center text-xs shadow-sm font-black">
-                    {q.correct_indices.indexOf(Number(i)) + 1}
+                    {(q.correct_indices?.indexOf(Number(i)) ?? -1) + 1}
                   </span>
                 )}
               </button>
