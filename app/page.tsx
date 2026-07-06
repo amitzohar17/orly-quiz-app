@@ -14,6 +14,8 @@ type UiQuestion = {
   correctIndex: number | null;
   correct_indices: number[] | null;
   type: string; 
+  image_url?: string | null;
+  open_answer_feedback?: string | null;
 };
 
 /* ---------- Main Component ---------- */
@@ -24,6 +26,7 @@ export default function Home() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<CategoryRow | null>(null);
+  const [availableQuizzes, setAvailableQuizzes] = useState<number[]>([]);
   const [selectedQuiz, setSelectedQuiz] = useState<number | null>(null);
   const [questions, setQuestions] = useState<UiQuestion[]>([]);
 
@@ -48,9 +51,25 @@ export default function Home() {
     setLoading(false);
   }
 
-  function prepareQuizSelection(c: CategoryRow) {
+  // שליפת מספרי השאלונים הקיימים באמת עבור הקורס הזה (ללא הגבלת כמות)
+  async function prepareQuizSelection(c: CategoryRow) {
     setSelectedCategory(c);
     setSelectedQuiz(null);
+    setLoading(true);
+
+    const { data, error } = await supabase
+      .from("questions")
+      .select("quiz_number")
+      .eq("category_id", c.id);
+
+    if (!error && data) {
+      const quizzes = Array.from(new Set(data.map(q => q.quiz_number).filter(Boolean))) as number[];
+      quizzes.sort((a, b) => a - b);
+      setAvailableQuizzes(quizzes);
+    } else {
+      setAvailableQuizzes([]);
+    }
+    setLoading(false);
   }
 
   async function loadQuestions(quizNum: number) {
@@ -69,15 +88,35 @@ export default function Home() {
       return; 
     }
     
-    const mapped: UiQuestion[] = (data || []).map(q => ({
-      id: String(q.id),
-      categoryId: String(q.category_id),
-      text: q.text,
-      options: q.type === 'boolean' ? ["נכון", "לא נכון"] : [q.option_a, q.option_b, q.option_c, q.option_d].filter(Boolean),
-      correctIndex: q.correct_index !== null ? Number(q.correct_index) : null,
-      correct_indices: q.correct_indices,
-      type: q.type || 'multiple_choice'
-    }));
+    const mapped: UiQuestion[] = (data || []).map(q => {
+      let opts: string[] = [];
+
+      if (q.type === 'boolean') {
+        opts = ["נכון", "לא נכון"];
+      } else if (q.type === 'open') {
+        opts = [];
+      } else if (Array.isArray(q.options_list) && q.options_list.length > 0) {
+        // פיצ'ר חדש: אם יש מערך מסיחים דינמי (למשל 6, 10 או יותר מסיחים) - ניקח אותו ישירות
+        opts = q.options_list.filter((val: any) => val !== null && val !== undefined && val !== "");
+      } else {
+        // מנגנון תאימות לאחור: אם אין רשימה מורחבת, ניקח את עמודות ה-A עד D הקיימות שלך
+        opts = [q.option_a, q.option_b, q.option_c, q.option_d].filter(
+          (val) => val !== null && val !== undefined && val !== ""
+        );
+      }
+
+      return {
+        id: String(q.id),
+        categoryId: String(q.category_id),
+        text: q.text,
+        options: opts,
+        correctIndex: q.correct_index !== null ? Number(q.correct_index) : null,
+        correct_indices: Array.isArray(q.correct_indices) ? q.correct_indices : null,
+        type: q.type || 'multiple_choice',
+        image_url: q.image_url,
+        open_answer_feedback: q.open_answer_feedback
+      };
+    });
     
     setQuestions(mapped);
     setSelectedQuiz(quizNum);
@@ -131,15 +170,21 @@ export default function Home() {
               <h1 className="text-2xl font-black">{selectedCategory.name}</h1>
               <p className="text-gray-500 font-medium">בחר שאלון לתרגול:</p>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
-                <button key={num} onClick={() => loadQuestions(num)} disabled={loading} className="p-6 bg-gray-50 border-2 border-transparent rounded-3xl hover:border-blue-500 hover:bg-white transition-all text-center flex flex-col items-center justify-center gap-2 group shadow-sm disabled:opacity-50">
-                  <span className="text-3xl">📝</span>
-                  <span className="font-black text-gray-800 text-lg">שאלון {num}</span>
-                  <span className="text-[10px] text-gray-400 font-bold group-hover:text-blue-500">התחל תרגול</span>
-                </button>
-              ))}
-            </div>
+            {loading ? (
+              <p className="text-center text-gray-400 font-bold py-10 animate-pulse">טוען שאלונים זמינים...</p>
+            ) : availableQuizzes.length === 0 ? (
+              <p className="text-center text-gray-400 font-bold py-10">לא נמצאו שאלונים מוגדרים לקורס זה</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-4">
+                {availableQuizzes.map((num) => (
+                  <button key={num} onClick={() => loadQuestions(num)} disabled={loading} className="p-6 bg-gray-50 border-2 border-transparent rounded-3xl hover:border-blue-500 hover:bg-white transition-all text-center flex flex-col items-center justify-center gap-2 group shadow-sm disabled:opacity-50">
+                    <span className="text-3xl">📝</span>
+                    <span className="font-black text-gray-800 text-lg">שאלון {num}</span>
+                    <span className="text-[10px] text-gray-400 font-bold group-hover:text-blue-500">התחל תרגול</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         ) : (
           <PracticeView allQuestions={questions} categoryName={selectedCategory.name} quizNum={selectedQuiz} onExit={() => setSelectedQuiz(null)} />
@@ -157,11 +202,16 @@ function PracticeView({ categoryName, quizNum, allQuestions, onExit }: { categor
   const [wrongIndices, setWrongIndices] = useState<Set<number>>(new Set());
   const [isFinished, setIsFinished] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [openText, setOpenText] = useState(""); 
 
   const q = currentQuestions[index];
   const userSelection = answers[index];
 
-  const isManualCheck = q?.type === 'multi' || q?.type === 'order' || q?.type === 'multiple_selection';
+  const isManualCheck = q?.type === 'multi' || q?.type === 'order' || q?.type === 'multiple_selection' || q?.type === 'open';
+
+  useEffect(() => {
+    setOpenText(answers[index] || "");
+  }, [index, answers]);
 
   if (allQuestions.length === 0) {
     return (
@@ -176,7 +226,16 @@ function PracticeView({ categoryName, quizNum, allQuestions, onExit }: { categor
     if (showFeedback && isManualCheck) return;
     if (userSelection !== undefined && !isManualCheck) return;
 
-    if (isManualCheck) {
+    if (q.type === 'order') {
+      const currentSel = Array.isArray(userSelection) ? userSelection : [];
+      let newSel;
+      if (currentSel.includes(i)) {
+        newSel = currentSel.filter(item => item !== i);
+      } else {
+        newSel = [...currentSel, i];
+      }
+      setAnswers({ ...answers, [index]: newSel });
+    } else if (q.type === 'multi' || q.type === 'multiple_selection') {
       const currentSel = Array.isArray(userSelection) ? userSelection : [];
       const newSel = currentSel.includes(i) ? currentSel.filter(item => item !== i) : [...currentSel, i];
       setAnswers({ ...answers, [index]: newSel });
@@ -187,10 +246,24 @@ function PracticeView({ categoryName, quizNum, allQuestions, onExit }: { categor
   }
 
   function checkAnswer() {
-    const correctOnes = q.correct_indices || [];
-    const userOnes = answers[index] || [];
-    const isCorrect = correctOnes.length === userOnes.length && correctOnes.every((v) => userOnes.includes(v));
-    if (!isCorrect) setWrongIndices(prev => new Set(prev).add(index));
+    if (q.type === 'open') {
+      setAnswers({ ...answers, [index]: openText });
+      setShowFeedback(true);
+      return;
+    }
+
+    if (q.type === 'order') {
+      const correctOnes = q.correct_indices || [];
+      const userOnes = answers[index] || [];
+      const isCorrect = correctOnes.length === userOnes.length && correctOnes.every((v, idx) => userOnes[idx] === v);
+      if (!isCorrect) setWrongIndices(prev => new Set(prev).add(index));
+    } else {
+      const correctOnes = q.correct_indices || [];
+      const userOnes = answers[index] || [];
+      const isCorrect = correctOnes.length === userOnes.length && correctOnes.every((v) => userOnes.includes(v));
+      if (!isCorrect) setWrongIndices(prev => new Set(prev).add(index));
+    }
+    
     setShowFeedback(true);
   }
 
@@ -225,10 +298,13 @@ function PracticeView({ categoryName, quizNum, allQuestions, onExit }: { categor
     );
   }
 
+  const isCheckDisabled = q.type === 'open' 
+    ? !openText.trim() 
+    : !userSelection || (Array.isArray(userSelection) && userSelection.length === 0);
+
   return (
     <div className="text-right flex flex-col h-full flex-1">
       <div className="flex justify-between items-center mb-6">
-        {/* החזרת שם הקורס ומספר השאלון מתחת לכפתור הסגירה */}
         <div className="flex flex-col">
           <button onClick={onExit} className="text-xs font-black text-blue-600 mb-1 text-right">✕ סגור</button>
           <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{categoryName} | שאלון {quizNum}</span>
@@ -241,46 +317,79 @@ function PracticeView({ categoryName, quizNum, allQuestions, onExit }: { categor
         </div>
       </div>
 
-      <h3 className="text-2xl font-black mb-6 leading-tight text-gray-800 whitespace-pre-line">{q.text}</h3>
+      {q.image_url && (
+        <div className="relative w-full h-48 mb-4 bg-gray-50 rounded-2xl overflow-hidden border border-gray-100">
+          <img src={q.image_url} alt="נספח לשאלה" className="w-full h-full object-contain" />
+        </div>
+      )}
+
+      <h3 className="text-2xl font-black mb-6 leading-tight text-gray-800 whitespace-pre-line">
+        {q.text}
+        {q.type === 'multiple_selection' || q.type === 'multi' ? <span className="text-sm block text-blue-500 font-bold mt-1">(בחירה מרובה)</span> : null}
+        {q.type === 'order' ? <span className="text-sm block text-blue-500 font-bold mt-1">(דרג את הפריטים לפי הסדר הנכון)</span> : null}
+      </h3>
       
-      <div className="grid gap-3 mb-8">
-        {q.options.map((opt, i) => {
-          let style = "w-full p-5 border-2 rounded-[1.5rem] text-right transition-all text-lg font-bold flex items-center justify-between ";
-          const isSelected = Array.isArray(userSelection) ? userSelection.includes(i) : userSelection === i;
-          
-          if ((!isManualCheck && userSelection !== undefined) || (isManualCheck && showFeedback)) {
-            const isCorrectOption = isManualCheck 
-              ? q.correct_indices?.includes(i) 
-              : i === q.correctIndex;
+      {q.type === 'open' ? (
+        <div className="mb-6">
+          <textarea
+            disabled={showFeedback}
+            value={openText}
+            onChange={(e) => setOpenText(e.target.value)}
+            placeholder="הקלד את תשובתך כאן..."
+            className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl h-32 focus:ring-2 focus:ring-blue-500 outline-none text-lg font-medium transition-all resize-none disabled:opacity-70"
+          />
+          {showFeedback && (
+            <div className="mt-4 p-5 bg-green-50 border-2 border-green-200 rounded-2xl text-green-800 animate-in fade-in">
+              <p className="font-black mb-1 text-lg">התשובה הנכונה / הסבר מנחה:</p>
+              <p className="font-bold whitespace-pre-line">{q.open_answer_feedback || "לא הוגדר הסבר מנחה לשאלה זו."}</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="grid gap-3 mb-8">
+          {q.options.map((opt, i) => {
+            let style = "w-full p-5 border-2 rounded-[1.5rem] text-right transition-all text-lg font-bold flex items-center justify-between ";
+            const isSelected = Array.isArray(userSelection) ? userSelection.includes(i) : userSelection === i;
             
-            if (isCorrectOption) style += "bg-green-50 border-green-500 text-green-700 shadow-inner";
-            else if (isSelected) style += "bg-red-50 border-red-500 text-red-700";
-            else style += "opacity-40 border-gray-50";
-          } else if (isSelected) {
-            style += "border-blue-500 bg-blue-50 shadow-md transform scale-[1.01]";
-          } else {
-            style += "border-gray-100 hover:bg-gray-50";
-          }
-          
-          return (
-            <button key={i} onClick={() => handleSelect(i)} className={style}>
-              <span>{opt}</span>
-              {isManualCheck && isSelected && (
-                <span className="bg-blue-600 text-white w-7 h-7 rounded-full flex items-center justify-center text-xs shadow-sm">
-                  {q.type === 'order' ? userSelection.indexOf(i) + 1 : '✓'}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+            if ((!isManualCheck && userSelection !== undefined) || (isManualCheck && showFeedback)) {
+              const isCorrectOption = q.type === 'multiple_selection' || q.type === 'multi' || q.type === 'order'
+                ? q.correct_indices?.includes(i) 
+                : i === q.correctIndex;
+              
+              if (isCorrectOption) style += "bg-green-50 border-green-500 text-green-700 shadow-inner";
+              else if (isSelected) style += "bg-red-50 border-red-500 text-red-700";
+              else style += "opacity-40 border-gray-50";
+            } else if (isSelected) {
+              style += "border-blue-500 bg-blue-50 shadow-md transform scale-[1.01]";
+            } else {
+              style += "border-gray-100 hover:bg-gray-50";
+            }
+            
+            return (
+              <button key={i} onClick={() => handleSelect(i)} className={style}>
+                <span>{opt}</span>
+                {isSelected && (
+                  <span className="bg-blue-600 text-white w-7 h-7 rounded-full flex items-center justify-center text-xs shadow-sm font-black">
+                    {q.type === 'order' ? (Array.isArray(userSelection) ? userSelection.indexOf(i) + 1 : '✓') : '✓'}
+                  </span>
+                )}
+                {!isSelected && q.type === 'order' && showFeedback && q.correct_indices?.includes(i) && (
+                  <span className="bg-green-600 text-white w-7 h-7 rounded-full flex items-center justify-center text-xs shadow-sm font-black">
+                    {q.correct_indices.indexOf(i) + 1}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       <div className="mt-auto flex gap-3">
         <button onClick={() => { if (index > 0) { setIndex(index - 1); setShowFeedback(false); } }} className={`flex-1 p-5 border-2 border-gray-100 rounded-3xl font-black text-gray-400 ${index === 0 ? 'opacity-0' : ''}`}>חזור</button>
         {isManualCheck && !showFeedback ? (
-          <button onClick={checkAnswer} disabled={!userSelection || (Array.isArray(userSelection) && userSelection.length === 0)} className="flex-[2] p-5 bg-blue-600 text-white rounded-3xl font-black text-xl shadow-lg disabled:bg-gray-100">בדיקה</button>
+          <button onClick={checkAnswer} disabled={isCheckDisabled} className="flex-[2] p-5 bg-blue-600 text-white rounded-3xl font-black text-xl shadow-lg disabled:bg-gray-100 disabled:text-gray-400">בדיקה</button>
         ) : (
-          <button onClick={handleNext} disabled={userSelection === undefined} className="flex-[2] p-5 bg-gray-900 text-white rounded-3xl font-black text-xl shadow-lg disabled:bg-gray-100">המשך</button>
+          <button onClick={handleNext} disabled={!isManualCheck && userSelection === undefined} className="flex-[2] p-5 bg-gray-900 text-white rounded-3xl font-black text-xl shadow-lg disabled:bg-gray-100 disabled:text-gray-400">המשך</button>
         )}
       </div>
     </div>
