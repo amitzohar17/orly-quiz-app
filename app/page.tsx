@@ -102,9 +102,9 @@ export default function Home() {
         );
       }
 
-      // הבטחת המרה של correct_indices למספרים בלבד כדי למנוע השוואות שגויות בין טקסט למספר
+      // הבטחת המרה מוחלטת למספרים נקיים
       const parsedIndices = Array.isArray(q.correct_indices) 
-        ? q.correct_indices.map((val: any) => Number(val)) 
+        ? q.correct_indices.map((val: any) => parseInt(String(val), 10)).filter(v => !isNaN(v))
         : null;
 
       return {
@@ -258,11 +258,10 @@ function PracticeView({ categoryName, quizNum, allQuestions, onExit }: { categor
     const userOnes = answers[index] || [];
 
     if (q.type === 'order') {
-      // בדיקה קפדנית בשאלת דירוג: האם המערכים זהים באורכם ובדיוק באותו הסדר רציף
+      // בדיקה אבסולוטית: האם אורך מערך הלחיצות שווה למערך התשובות והאם כל איבר זהה לחלוטין במיקומו
       const isCorrect = correctOnes.length === userOnes.length && correctOnes.every((v, idx) => Number(userOnes[idx]) === Number(v));
       if (!isCorrect) setWrongIndices(prev => new Set(prev).add(index));
     } else {
-      // בדיקה בשאלת בחירה מרובה: האם כל מה שנבחר קיים במערך הנכון
       const isCorrect = correctOnes.length === userOnes.length && correctOnes.every((v) => userOnes.includes(Number(v)));
       if (!isCorrect) setWrongIndices(prev => new Set(prev).add(index));
     }
@@ -354,16 +353,15 @@ function PracticeView({ categoryName, quizNum, allQuestions, onExit }: { categor
             let style = "w-full p-5 border-2 rounded-[1.5rem] text-right transition-all text-lg font-bold flex items-center justify-between ";
             const isSelected = Array.isArray(userSelection) ? userSelection.includes(i) : userSelection === i;
             
-            // לוגיקת צביעת הפידבק המתוקנת
             if (userSelection !== undefined && (!isManualCheck || showFeedback)) {
               let isCorrectOption = false;
 
               if (q.type === 'multiple_selection' || q.type === 'multi') {
-                isCorrectOption = q.correct_indices?.includes(i) || false;
+                isCorrectOption = q.correct_indices?.includes(Number(i)) || false;
               } else if (q.type === 'order') {
-                // בדירוג: האם המשתמש מיקם את הסעיף הספציפי הזה באינדקס הנכון שלו במערך
+                // לוגיקת צביעה חסינת באגים: פריט ייצבע בירוק אך ורק אם המיקום שלו במערך של המשתמש תואם בדיוק למיקום שלו במערך התשובות הנכונות מהדאטאבייס
                 const userPos = Array.isArray(userSelection) ? userSelection.indexOf(i) : -1;
-                const correctPos = q.correct_indices?.indexOf(i) || -1;
+                const correctPos = q.correct_indices ? q.correct_indices.indexOf(Number(i)) : -1;
                 isCorrectOption = userPos === correctPos && userPos !== -1;
               } else {
                 isCorrectOption = i === q.correctIndex;
@@ -386,17 +384,15 @@ function PracticeView({ categoryName, quizNum, allQuestions, onExit }: { categor
               <button key={i} onClick={() => handleSelect(i)} className={style}>
                 <span>{opt}</span>
                 
-                {/* תצוגת אינדקס בחירת המשתמש בזמן לחיצה */}
                 {isSelected && (
                   <span className="bg-blue-600 text-white w-7 h-7 rounded-full flex items-center justify-center text-xs shadow-sm font-black">
                     {q.type === 'order' ? (Array.isArray(userSelection) ? userSelection.indexOf(i) + 1 : '✓') : '✓'}
                   </span>
                 )}
                 
-                {/* פיצ'ר חשוב: חשיפת המיקום הנכון של הסעיף בדירוג במידה והמשתמש טעה */}
-                {!isSelected && q.type === 'order' && showFeedback && q.correct_indices?.includes(i) && (
+                {!isSelected && q.type === 'order' && showFeedback && q.correct_indices && q.correct_indices.includes(Number(i)) && (
                   <span className="bg-green-600 text-white w-7 h-7 rounded-full flex items-center justify-center text-xs shadow-sm font-black">
-                    {q.correct_indices.indexOf(i) + 1}
+                    {q.correct_indices.indexOf(Number(i)) + 1}
                   </span>
                 )}
               </button>
