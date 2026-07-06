@@ -102,7 +102,6 @@ export default function Home() {
         );
       }
 
-      // הבטחת המרה מוחלטת למספרים נקיים
       const parsedIndices = Array.isArray(q.correct_indices) 
         ? q.correct_indices.map((val: any) => parseInt(String(val), 10)).filter((v: any) => !isNaN(v))
         : null;
@@ -258,7 +257,7 @@ function PracticeView({ categoryName, quizNum, allQuestions, onExit }: { categor
     const userOnes = answers[index] || [];
 
     if (q.type === 'order') {
-      // בדיקה אבסולוטית: האם אורך מערך הלחיצות שווה למערך התשובות והאם כל איבר זהה לחלוטין במיקומו
+      // בדיקת זהות מוחלטת של סדר מערך הלחיצות מול מערך התשובות הנכונות מסופהבייס
       const isCorrect = correctOnes.length === userOnes.length && correctOnes.every((v, idx) => Number(userOnes[idx]) === Number(v));
       if (!isCorrect) setWrongIndices(prev => new Set(prev).add(index));
     } else {
@@ -359,7 +358,7 @@ function PracticeView({ categoryName, quizNum, allQuestions, onExit }: { categor
               if (q.type === 'multiple_selection' || q.type === 'multi') {
                 isCorrectOption = q.correct_indices?.includes(Number(i)) || false;
               } else if (q.type === 'order') {
-                // לוגיקת צביעה חסינת באגים: פריט ייצבע בירוק אך ורק אם המיקום שלו במערך של המשתמש תואם בדיוק למיקום שלו במערך התשובות הנכונות מהדאטאבייס
+                // תיקון הצביעה האבסולוטי: פריט ייצבע בירוק אך ורק אם המיקום שלו במערך הבחירה של המשתמש שווה למיקום שלו במערך התשובות הנכונות מסופהבייס
                 const userPos = Array.isArray(userSelection) ? userSelection.indexOf(i) : -1;
                 const correctPos = q.correct_indices ? q.correct_indices.indexOf(Number(i)) : -1;
                 isCorrectOption = userPos === correctPos && userPos !== -1;
@@ -390,7 +389,8 @@ function PracticeView({ categoryName, quizNum, allQuestions, onExit }: { categor
                   </span>
                 )}
                 
-                {!isSelected && q.type === 'order' && showFeedback && q.correct_indices && q.correct_indices.includes(Number(i)) && (
+                {/* הצגת מספר השלב הנכון בצבע ירוק ליד האפשרות אם המשתמש טעה בדירוג שלה */}
+                {!isCorrectOption && q.type === 'order' && showFeedback && q.correct_indices && q.correct_indices.includes(Number(i)) && (
                   <span className="bg-green-600 text-white w-7 h-7 rounded-full flex items-center justify-center text-xs shadow-sm font-black">
                     {q.correct_indices.indexOf(Number(i)) + 1}
                   </span>
